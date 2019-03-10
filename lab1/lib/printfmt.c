@@ -298,12 +298,10 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 					else {
 						int count = *(int *) putdat;
 						if (count > 127){
-							*(char *)iptr = -1;
 							for (int idx = 0; idx != strlen(overflow_error); idx++)
 								putch(overflow_error[idx], putdat);
 						}
-						else 
-							*(char *)iptr = (char)count;
+						*(char *)iptr = (char)count;
 					}
 
 				  break;

