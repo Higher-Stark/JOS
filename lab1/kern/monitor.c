@@ -137,32 +137,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-int mon_time(int argc, char **argv, struct Trapframe *tf)
-{
-	if (argc != 2) 
-	return 0;
-	// lookup the command in command table
-	struct Command *cmd = NULL;
-	for (int i = 0; i < ARRAY_SIZE(commands); i++) {
-		if (strcmp(argv[1], commands[i].name) == 0) {
-			cmd = &(commands[i]);
-			break;
-		}
-	}
-	// if command not found
-	// return
-	if (!cmd) return 0;
-	
-	uint64_t begin = 0;
-	begin = read_tsc();
-
-	cmd->func(argc - 1, & argv[1], tf);
-
-	uint64_t stop = read_tsc();
-	cprintf("%s cycles: %lld\n", argv[1], stop-begin);
-	return 0;
-}
-
 /***** Kernel monitor command interpreter *****/
 
 #define WHITESPACE "\t\r\n "
@@ -222,4 +196,42 @@ monitor(struct Trapframe *tf)
 			if (runcmd(buf, tf) < 0)
 				break;
 	}
+}
+
+int mon_time(int argc, char **argv, struct Trapframe *tf)
+{
+	const int MAXBUFLEN = 1024;
+	char buf[MAXBUFLEN];
+	char *bufptr = buf;
+	for (int i = 1; i != argc; i++) {
+		size_t len = (size_t)strlen(argv[i]);
+		strncpy(bufptr, argv[i], len);
+		bufptr += len;
+		*(bufptr++) = ' ';
+	}
+
+	/*
+	if (argc != 2) 
+	return 0;
+	// lookup the command in command table
+	struct Command *cmd = NULL;
+	for (int i = 0; i < ARRAY_SIZE(commands); i++) {
+		if (strcmp(argv[1], commands[i].name) == 0) {
+			cmd = &(commands[i]);
+			break;
+		}
+	}
+	// if command not found
+	// return
+	if (!cmd) return 0;
+	*/
+	uint64_t begin = 0;
+	begin = read_tsc();
+
+	// cmd->func(argc - 1, & argv[1], tf);
+	runcmd(buf, tf);
+
+	uint64_t stop = read_tsc();
+	cprintf("%s cycles: %lld\n", argv[1], stop-begin);
+	return 0;
 }
