@@ -1,3 +1,9 @@
+---
+title: Notes for JOS lab 1
+author: Higher Stark
+date: 2019/03/12
+---
+
 # JOS Lab 1 notes
 
 ## Part 1 - PC Bootstrap
@@ -25,9 +31,9 @@
 
 ### Exercise 3
 
-1. Once enter protected mode, processor starts to execute 32-bit code. When virtual address flag is on, 16-bit is shifted to 32-bit
+1. `ljmp    $PROT_MODE_CSEG, $protcseg` instruction sets CS to 0x8, then processor switch to 32-bits mode.
 
-2. The last instruction boot loader executes is `call *0x10018`, the first instruction kernel just loaded is `add    0x1bad(%eax),%dh`.
+2. The last instruction boot loader executes is `call *0x10018 // ((void (*)(void)) (ELFHDR->e_entry))()` which start executing kernel code. The first instruction kernel just loaded is `100000:   add    0x1bad(%eax),%dh`.
 
 3. `ELFHDR->e_phnum` tells how much sector to load.
 
@@ -65,7 +71,7 @@ Address from 0x000000 to 0x400000 is mapped to 0x000000 through 0x400000. Thus p
 
 1. Interface between console.c and printf.c
 
-    console.c export function `void cputchar(int c)` as the interface, printf.c wraps this interface up in the function void putch(int ch, int *cnt).
+    console.c export function `void cputchar(int c)` as the interface, printf.c wraps this interface up in the function `void putch(int ch, int *cnt)`.
 
 2.  Code in console.c
 
@@ -125,13 +131,13 @@ Address from 0x000000 to 0x400000 is mapped to 0x000000 through 0x400000. Thus p
          cprintf("H%x Wo%s", 57616, &i);
      ```
 
-    The output is `He110 World`.
+    The output is "He110 World".
 
-    The function `cprintf` will first print character 'H', then print the heximal form of integer 57616, which is `0xe110`. " Wo" will be printed afterwards. At last, integer i is printed in string format. The layout of 0x00646c72 in memory is 0x72 0x6c 0x64 0x00, as it is on a little-endian machine. The first three bytes is mapped to 'r', 'l', 'd' respectively. 
+    The function `cprintf` will first print character 'H', then print the heximal form of integer 57616, which is 0xe110. " Wo" will be printed afterwards. At last, integer `i` is printed in string format. The layout of 0x00646c72 in memory is 0x72 0x6c 0x64 0x00, as it is on a little-endian machine. The four bytes is mapped to 'r', 'l', 'd' and '\0' respectively. 
 
-    Otherwise, if on a big-endian machine, i is expected to be 0x726c6400 to yield the same output. But 57616 is not affected.
+    Otherwise, if on a big-endian machine, `i` is expected to be 0x726c6400 to yield the same output. But 57616 is not affected.
 
-5. Number after y is a random value, which is the next four bytes value following 3. These four bytes are not set intentionally when referenced.
+5. Number after `y` is a random value, which is the next four bytes value following 3. These four bytes are not set intentionally when referenced.
 
 6. Add an integer argument in the parameter list, indicating the number of arguments followed. This integer is better to place just before the `...`
 
@@ -143,11 +149,11 @@ Kernel initializes the stack at the 77 line in file entry.S, `movl	$(bootstackto
 
 #### Exercise 13
 
-Test_backtrace push 32 bytes onto the stack each time. The 32 bytes are return address, saved $ebp and arguments(such as 0xf01009a4 is pointed to putch).
+`test_backtrace` push 32 bytes onto the stack each time. The 32 bytes are return address, saved $ebp, arguments and some temporary variables.
 
 #### Exercise 15
 
-Dissambling obj/kern/kernel, the .stab contains debug info for the entire executable file. 
+Dissambling obj/kern/kernel, the `.stab` contains debug info for the entire executable file. 
 The general of the stab is a list of 'file', whose first line indicates the file type and the index in str table, variables and statements following the first line.
 
 As these 'files' are arranged by the lowest instruction address, to find a line where it is, just search this sorted array by instruction address. First by file, set `n_type` to `N_SO`. Second by function, set `n_type` to `N_FUN`. Third by instruction address, set `n_type` to `SLINE`. If not found, then the instruction is probably from a function which is inlined. Thus find previous  with `n_type` equals `N_SOL`.
@@ -157,7 +163,7 @@ As these 'files' are arranged by the lowest instruction address, to find a line 
   
 #### Exercise 16
 
-As `%n` writes to one byte memory with the pointer given. Get `%ebp` with function `read_pretaddr`, and pass it to `cprintf` function, we can modify return address and call `do_overflow` function.
+As `%n` writes to one byte memory with the pointer given. Get `%ebp` with function `read_pretaddr`, and pass it to `cprintf` function, we can modify return address and point it to `do_overflow` function.
 
 However, operation above takes great risk, for stack might be corruptted and `%esp` is 4 word higher comparing to that normally returned from start_overflow. But in fact, the kernel performs in normal. 
 
