@@ -1,9 +1,3 @@
----
-title: Notes for JOS lab 1
-author: Higher Stark
-date: 2019/03/12
----
-
 # JOS Lab 1 notes
 
 ## Part 1 - PC Bootstrap
