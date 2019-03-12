@@ -59,3 +59,4 @@ QEMU_Emulator/
 *.pyc
 *.out
 pointer-exercise/
+*.pdf

@@ -97,7 +97,7 @@ Address from 0x000000 to 0x400000 is mapped to 0x000000 through 0x400000. Thus p
       cons_putc(0xf01019b9)
       va_arg()
         old ap: 0xf010feb4(\001)
-        new ap: 0ff010feb8(\003)
+        new ap: 0xf010feb8(\003)
       cons_putc(0xf01019ba)
       cons_putc(0xf01009b7)
       cons_putc(0xf01019bc)
@@ -106,7 +106,7 @@ Address from 0x000000 to 0x400000 is mapped to 0x000000 through 0x400000. Thus p
       cons_putc(0xf01019bf)
       va_arg()
         old ap: 0xf010feb8(\003)
-        new ap: 0ff010febc(\004)
+        new ap: 0xf010febc(\004)
       cons_putc(0xf01009b7)
       cons_putc(0xf01019c2)
       cons_putc(0xf01019c3)
@@ -114,7 +114,7 @@ Address from 0x000000 to 0x400000 is mapped to 0x000000 through 0x400000. Thus p
       cons_putc(0xf01019c5)
       va_arg()
         old ap: 0xf010febc(\004)
-        new ap: 0ff010fec0("")
+        new ap: 0xf010fec0("")
       cons_putc(0xf01019c6)
       cons_putc(0xf01009b7)
       cons_putc(0xf01019c8)
@@ -137,17 +137,15 @@ Address from 0x000000 to 0x400000 is mapped to 0x000000 through 0x400000. Thus p
 
 6. Add an integer argument in the parameter list, indicating the number of arguments followed. This integer is better to place just before the `...`
 
-### The Stack
-
-#### Exercise 12
+### Exercise 12
 
 Kernel initializes the stack at the 77 line in file entry.S, `movl	$(bootstacktop),%esp`. The stack's top is located at 0xf0108000 to 0xf0110000. The stack space is reserved as the data segment. As stack grows downwards, the stack pointer is initialized to point to virtual address 0xf0110000, same as instruction `movl 0xf0110000, %esp` told.
 
-#### Exercise 13
+### Exercise 13
 
 `test_backtrace` push 32 bytes onto the stack each time. The 32 bytes are return address, saved %ebp, arguments and some temporary variables.
 
-#### Exercise 15
+### Exercise 15
 
 Dissambling obj/kern/kernel, the `.stab` contains debug info for the entire executable file. 
 The general of the stab is a list of 'file', whose first line indicates the file type and the index in str table, variables and statements following the first line.
@@ -157,7 +155,7 @@ As these 'files' are arranged by the lowest instruction address, to find a line 
   >*n_desc* field indicates the line instruction lies in the source file.  
   >*n_value* field indicates the address of the assembly.
   
-#### Exercise 16
+### Exercise 16
 
 As `%n` writes to one byte memory with the pointer given. Get `%ebp` with function `read_pretaddr`, and pass it to `cprintf` function, we can modify return address and point it to `do_overflow` function.
 
@@ -166,7 +164,7 @@ However, operation above takes great risk, for stack might be corruptted and `%e
 _Why that ?_
 According to the assembly, `start_overflow` is called at 0xf0100aea. When `start_overflow` returns to but do_overflow's entry, then `do_overflow` returns, the %esp is not the same before calling. But the optimization doesn't expect %esp to be what is was, `lea    -0xc(%ebp),%esp` restores the %esp to what it should be. Thus the program continues normally. 
 
-#### Exercise 17
+### Exercise 17
 
 Function `read_tsc` in x86.h has wraps `rdtsc` assembly up, make it easy to implement `time` command.
 
