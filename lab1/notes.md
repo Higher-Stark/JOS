@@ -35,7 +35,7 @@
 
 * Entering boot loader
 
-```
+```gdb
 (gdb) x/8x 0x100000
 0x100000:   0x00000000  0x00000000  0x00000000  0x00000000
 0x100010:   0x00000000  0x00000000  0x00000000  0x00000000
@@ -84,39 +84,41 @@ Address from 0x000000 to 0x400000 is mapped to 0x000000 through 0x400000. Thus p
 
 3. Execution of following code
 
-    ```C
-    int x = 1, y = 3, z = 4;
-    cprintf("x %d, y %x, z %d\n", x, y, z);
-    ```
+      ```C
+      int x = 1, y = 3, z = 4;
+      cprintf("x %d, y %x, z %d\n", x, y, z);
+      ```
 
-    ```C
-    vcprintf("x %d, y %x, z %d\n", 1, 3, 4)
-    cons_putc(0xf0101968)
-    cons_putc(0xf01019b9)
-    va_arg()
-      old ap: 0xf010feb4(\001)
-      new ap: 0ff010feb8(\003)
-    cons_putc(0xf01019ba)
-    cons_putc(0xf01009b7)
-    cons_putc(0xf01019bc)
-    cons_putc(0xf01019bd)
-    cons_putc(0xf01019be)
-    cons_putc(0xf01019bf)
-    va_arg()
-      old ap: 0xf010feb8(\003)
-      new ap: 0ff010febc(\004)
-    cons_putc(0xf01009b7)
-    cons_putc(0xf01019c2)
-    cons_putc(0xf01019c3)
-    cons_putc(0xf01019c4)
-    cons_putc(0xf01019c5)
-    va_arg()
-      old ap: 0xf010febc(\004)
-      new ap: 0ff010fec0("")
-    cons_putc(0xf01019c6)
-    cons_putc(0xf01009b7)
-    cons_putc(0xf01019c8)
-    ```
+    calling trace:
+
+      ```C
+      vcprintf("x %d, y %x, z %d\n", 1, 3, 4)
+      cons_putc(0xf0101968)
+      cons_putc(0xf01019b9)
+      va_arg()
+        old ap: 0xf010feb4(\001)
+        new ap: 0ff010feb8(\003)
+      cons_putc(0xf01019ba)
+      cons_putc(0xf01009b7)
+      cons_putc(0xf01019bc)
+      cons_putc(0xf01019bd)
+      cons_putc(0xf01019be)
+      cons_putc(0xf01019bf)
+      va_arg()
+        old ap: 0xf010feb8(\003)
+        new ap: 0ff010febc(\004)
+      cons_putc(0xf01009b7)
+      cons_putc(0xf01019c2)
+      cons_putc(0xf01019c3)
+      cons_putc(0xf01019c4)
+      cons_putc(0xf01019c5)
+      va_arg()
+        old ap: 0xf010febc(\004)
+        new ap: 0ff010fec0("")
+      cons_putc(0xf01019c6)
+      cons_putc(0xf01009b7)
+      cons_putc(0xf01019c8)
+      ```
 
 4. Execution of the following code
    
