@@ -145,7 +145,7 @@ Kernel initializes the stack at the 77 line in file entry.S, `movl	$(bootstackto
 
 #### Exercise 13
 
-`test_backtrace` push 32 bytes onto the stack each time. The 32 bytes are return address, saved $ebp, arguments and some temporary variables.
+`test_backtrace` push 32 bytes onto the stack each time. The 32 bytes are return address, saved %ebp, arguments and some temporary variables.
 
 #### Exercise 15
 
@@ -164,7 +164,7 @@ As `%n` writes to one byte memory with the pointer given. Get `%ebp` with functi
 However, operation above takes great risk, for stack might be corruptted and `%esp` is 4 word higher comparing to that normally returned from start_overflow. But in fact, the kernel performs in normal. 
 
 _Why that ?_
-According to the assembly, `start_overflow` is called at 0xf0100aea. When `start_overflow` returns to but do_overflow's entry, then `do_overflow` returns, the $esp is not the same before calling. But the optimization doesn't expect %esp to be what is was, `lea    -0xc(%ebp),%esp` restores the %esp to what it should be. Thus the program continues normally. 
+According to the assembly, `start_overflow` is called at 0xf0100aea. When `start_overflow` returns to but do_overflow's entry, then `do_overflow` returns, the %esp is not the same before calling. But the optimization doesn't expect %esp to be what is was, `lea    -0xc(%ebp),%esp` restores the %esp to what it should be. Thus the program continues normally. 
 
 #### Exercise 17
 
