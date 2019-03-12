@@ -159,6 +159,11 @@ As these 'files' are arranged by the lowest instruction address, to find a line 
 
 As `%n` writes to one byte memory with the pointer given. Get `%ebp` with function `read_pretaddr`, and pass it to `cprintf` function, we can modify return address and call `do_overflow` function.
 
+However, operation above takes great risk, for stack might be corruptted and `%esp` is 4 word higher comparing to that normally returned from start_overflow. But in fact, the kernel performs in normal. 
+
+_Why that ?_
+According to the assembly, `start_overflow` is called at 0xf0100aea. When `start_overflow` returns to but do_overflow's entry, then `do_overflow` returns, the $esp is not the same before calling. But the optimization doesn't expect %esp to be what is was, `lea    -0xc(%ebp),%esp` restores the %esp to what it should be. Thus the program continues normally. 
+
 #### Exercise 17
 
 Function `read_tsc` in x86.h has wraps `rdtsc` assembly up, make it easy to implement `time` command.
