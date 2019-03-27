@@ -14,6 +14,7 @@ void
 i386_init(void)
 {
 	extern char edata[], end[];
+	char chnum1 = 0, chnum2 = 0, ntest[256] = {};
 
 	// Before doing anything else, complete the ELF loading process.
 	// Clear the uninitialized global data (BSS) section of our program.

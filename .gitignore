@@ -60,3 +60,4 @@ QEMU_Emulator/
 *.out
 pointer-exercise/
 *.pdf
+.git.ipads/
