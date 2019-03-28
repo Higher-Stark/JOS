@@ -181,7 +181,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// TODO: Your code goes here:
-	boot_map_region(kern_pgdir, UPAGES, PGSIZE, PADDR((void *)UPAGES), PTE_U);
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -205,6 +205,7 @@ mem_init(void)
 	// Permissions: kernel RW, user NONE
 	// TODO: Your code goes here:
 	boot_map_region_large(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
+	lcr4(rcr4() | CR4_PSE);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -401,15 +402,12 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 {
 	// Fill this function in
 	for (size_t s = 0; s < size; ) {
-		pte_t *entry = pgdir_walk(pgdir, (const void *)(va + size), 1);
+		pte_t *entry = pgdir_walk(pgdir, (const void *)(va + s), 1);
 		if (!entry) {
-			panic("boot_map_regoin: page table not exists!\n");
+			cprintf("boot_map_region: page table not exists!\n");
 			return;
 		}
 		*entry = (pa + s) | perm | PTE_P;
-		// struct PageInfo *pinfo = pa2page(PADDR(pa + s));
-		// if (page_free_list == pinfo) page_free_list = page_free_list->pp_link;
-		// pinfo->pp_link = NULL;
 
 		s += PGSIZE;
 	}
@@ -434,7 +432,7 @@ boot_map_region_large(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, in
 		pde_t *entry = &pgdir[PDX(va + s)];
 		//  Page directory entry points to a page table
 		if ((*entry & PTE_P) && !(*entry & PTE_PS)) {
-			panic("boot_map_region_large: Page table is overlapped.\n");
+			cprintf("boot_map_region_large: Page table is overlapped.\n");
 		}
 		*entry = (pa + s) | perm | PTE_P | PTE_PS;
 	}
