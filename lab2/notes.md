@@ -50,10 +50,12 @@ Function `boot_map_region_large` maps huge page into page directory, but the pag
 | 1023 | 0xffc00000 | Page table for top 4MB of phys memory |
 | 1022 | 0xff800000 | Page table for second 4MB of physical memory |
 | 1021 | 0xff400000 | Page table for third 4MB of physical memory |
+| 960 - 1023 | 0xF0000000 - 0xFFFFFFFF | physical memory |
+| 959 | 0xefc00000 | Kernel Stack |
 | .. | .. | .. |
-| 2 | 0x00800000 | |
-| 1 | 0x00400000 | |
-| 0 | 0x00000000 | |
+| 2 | 0x00800000 | 0x0 |
+| 1 | 0x00400000 | 0x0 |
+| 0 | 0x00000000 | 0x0 |
 
 #### Question 3
 
