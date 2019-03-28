@@ -194,7 +194,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// TODO: Your code goes here:
-	boot_map_region_large(kern_pgdir, KSTACKTOP - PTSIZE, PTSIZE, PADDR(bootstack), PTE_W);
+	boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -204,7 +204,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// TODO: Your code goes here:
-	boot_map_region(kern_pgdir, KERNBASE, 0xffffffff - KERNBASE + 1, 0, PTE_W);
+	boot_map_region_large(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -264,6 +264,7 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
+	page_free_list = NULL;
 	for (i = 0; i < 1; i++) {
 		pages[i].pp_ref = 1;
 		pages[i].pp_link = NULL;
@@ -274,7 +275,7 @@ page_init(void)
 		page_free_list = &pages[i];
 	}
 	for (i = PTX(IOPHYSMEM); i < PTX(EXTPHYSMEM); i++) {
-		pages[i].pp_ref = 0;
+		pages[i].pp_ref = 1;
 		pages[i].pp_link = NULL;
 	}
 	for (; i < PTX(PADDR(boot_alloc(0))); i++) {
@@ -330,7 +331,6 @@ page_free(struct PageInfo *pp)
 		panic("page_free: page's link is not NULL or ref count is nonzero\n");
 
 	pp->pp_link = page_free_list;
-	pp->pp_ref = 0;
 	page_free_list = pp;
 }
 
@@ -371,15 +371,18 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	void *res = NULL;
-	res = (void *)pgdir[PDX(va)];
-	if (!res && !create) return NULL;
-	if (!res && create) {
+	pde_t *dir = &pgdir[PDX(va)];
+	// Present bit = 0
+	if (!(*dir & PTE_P)) {
+		if (!create) return NULL;
 		struct PageInfo *pinfo = page_alloc(ALLOC_ZERO);
-		return KADDR(page2pa(pinfo));
-	} 
-	pte_t *ret = &(((pte_t *)res)[PTX(va)]);
-	return ret;
+		if (!pinfo) return NULL;
+		pinfo->pp_ref += 1;
+		physaddr_t paddr = page2pa(pinfo);
+		*dir = paddr | PTE_P | PTE_W | PTE_U;
+	}
+	pte_t *pageTab  = (pte_t *)KADDR(PTE_ADDR(*dir));
+	return &pageTab[PTX(va)];
 }
 
 //
@@ -397,7 +400,19 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
-	
+	for (size_t s = 0; s < size; ) {
+		pte_t *entry = pgdir_walk(pgdir, (const void *)(va + size), 1);
+		if (!entry) {
+			panic("boot_map_regoin: page table not exists!\n");
+			return;
+		}
+		*entry = (pa + s) | perm | PTE_P;
+		// struct PageInfo *pinfo = pa2page(PADDR(pa + s));
+		// if (page_free_list == pinfo) page_free_list = page_free_list->pp_link;
+		// pinfo->pp_link = NULL;
+
+		s += PGSIZE;
+	}
 }
 
 //
@@ -415,6 +430,14 @@ static void
 boot_map_region_large(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	for (size_t s = 0; s < size; s += PTSIZE) {
+		pde_t *entry = &pgdir[PDX(va + s)];
+		//  Page directory entry points to a page table
+		if ((*entry & PTE_P) && !(*entry & PTE_PS)) {
+			panic("boot_map_region_large: Page table is overlapped.\n");
+		}
+		*entry = (pa + s) | perm | PTE_P | PTE_PS;
+	}
 }
 
 //
@@ -446,6 +469,17 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t *entry = pgdir_walk(pgdir, va, 1);
+	if (!entry)
+		return -E_NO_MEM;
+
+	pp->pp_ref++;
+
+	if (*entry & PTE_P) {
+		page_remove(pgdir, va);
+	}
+	*entry = page2pa(pp) | perm | PTE_P;
+
 	return 0;
 }
 
@@ -464,7 +498,17 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *entry = pgdir_walk(pgdir, va, 0);
+	if (pte_store) {
+		*pte_store = entry;
+	}
+	if (!entry)
+		return NULL;
+	if (!(*entry & PTE_P)) {
+		return NULL;
+	}
+	struct PageInfo *pp = pa2page(PTE_ADDR(*entry));
+	return pp;
 }
 
 //
@@ -485,7 +529,14 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+	pte_t *pte_store;
+	struct PageInfo *pp = page_lookup(pgdir, va, &pte_store);
+	// no physical page
+	if (!pp)
+		return;
+	page_decref(pp);
+	tlb_invalidate(pgdir, va);
+	*pte_store = 0;
 }
 
 //
