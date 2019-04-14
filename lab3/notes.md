@@ -1,116 +1,51 @@
-# Lab 2 notes
+# Lab 3 notes
 
-## Part 2
-### Exercise 2
-#### Page translation
+## Lab 内容简介
 
-A linear address can be divided into 3 parts:
+Lab 3 会在系统启动后创建第一个用户态进程，本次lab只会有一个用户态进程，后续的lab会产生多个用户太进程。
 
+JOS的用户态进程称为一个environment，与xv6的process有所不同。
+JOS下只会有一个活跃的environment,所以不是每个env都会有一个Trap frame。JOS中只有一个trap frame。
+
+多任务、不同的等级要求我们记录每个env，从而实现对envs的管理。主要有以下几点：
+
+1. env的创建
+2. env的执行
+3. env的终结
+4. env运行中系统调用与异常
+
+这一些点会牵涉到每个env内存表的构造、内存的分配映射，程序文件的加载，trap frame的使用等。
+
+_本次lab会涉及一些gcc的内联汇编代码，但对本次lab并不一定需要使用到_
+
+## Way Through the Lab
+### Part A
+#### Exercise 1
+
+JOS 内核维护了整个系统的environments，通过
+```C
+struct Env *envs = NULL;		// all environments
+struct Env *curenv = NULL;		// current env
+static struct Env *env_free_list;	// Free environment list
 ```
-31             22 21              12 11           0
-| Page Dir index | Page Table index | Page Offset |
-```
+三个变量。`envs`是系统中所有environments所在的数组，分配空间在执行`page_init()`之前，使用`boot_alloc()`分配数组内存。
+`env_free_list`要求第一个被分配的environment是`envs`数组的第一个，将`env_free_list`指向`envs`即可。`env_free_list`是个链表结构，只需要在初始化envs数组时将前一个指向后一个就可以了。
 
-Translating a linear address into a physical address, page directory index is used to find page table page.
-Page table index helps find the page frame's physical address, and offset points out the corresponding physical address.
+#### Exercise 2
 
-#### Page Protection
+Lab 文档中提到 JOS 的内核内嵌了一些用户态的程序，以二进制的ELF格式。
+这样就可以直接从内存中复制，而不需要像`main.c`中的`bootmain()`函数一样从磁盘读取。
 
-As page frame's address is aligned to 4K, the lower 12 bits of the address is zero. These 12 bits is used to indicates the page frame's states.
+`env.c`中需要我们实现的有`env_init()`, `env_setup_vm()`, `region_alloc()`, `load_icode()`, `env_create()`, `env_run()`这几个函数。
 
-* Present bit   
-    Whether the page frame is allocated. If P = 0, the remaining bits is invalid.
-* Accessed and Dirty bits  
-    Before a write to an address, the PTE's dirty is set.
-* R/W bit (Read/Write bit) and User/Supervisor bit  
-    These are not used for address translation. They are used for page protection.  
-    U/S bit = 0: the page is for the operating system and other system software and related data.  
-    U/S bit = 1: for application procedures and data.
-    R/W bit = 0: read-only access
-    R/W bit = 1: read/write access
-
-The protection is provided by both page directory entry and page table entry.
-
-From the table in Intel 80386 Manual, If the U/S bit is 0 in either page directory or page table entry, the page frame's U/S flag is 0, and R/W bit not checked. Otherwise, the page frame's U/S flag is 1. And the page frame is writable only when two R/W bit is 1.
-
-#### Question 1
-
-Variable x has the type of `uintptr_t`.
-
-#### Page Table management
-
-Function `boot_map_region_large` maps huge page into page directory, but the page directory entry's PS bit is not effective as PSE bit is not set in register cr4. Enable page size extension as soon as cr3 is changed.
-
-### Part 3
-
-#### Question 2
-
-| Entry | Base Virtual Address | Points to (logically): |
-| ----: | :------------------: | :--------------------: |
-| 1023 | 0xffc00000 | Page table for top 4MB of phys memory |
-| 1022 | 0xff800000 | Page table for second 4MB of physical memory |
-| 1021 | 0xff400000 | Page table for third 4MB of physical memory |
-| 960 - 1023 | 0xF0000000 - 0xFFFFFFFF | physical memory |
-| 959 | 0xefc00000 | Kernel Stack |
-| .. | .. | .. |
-| 2 | 0x00800000 | 0x0 |
-| 1 | 0x00400000 | 0x0 |
-| 0 | 0x00000000 | 0x0 |
-
-#### Question 3
-
-The PTE_U/PTE_S flag indicates whether user can access the page frame. Although in the same address space, the kernel memory is protected with the PTE_S set.
-
-#### Question 4
-
-The operating system can support up to 4G memory. Because the 2-level page table covers up to 4G memory space.
-
-#### Question 5
-
-Space overhead: 4K + 4K * 1024 = 5000K. 
-
-Hugepage helps break down the overhead.
-
-#### Question 6
-
-```asm
-	mov	$relocated, %eax
-	jmp	*%eax           # <<<<------- after this point, EIP jumps above KERNBASE
-relocated:
-```
-
-Because bofore change register `cr3`, the physical memory space [0 - 4MB] is mapped to [0 - 4MB] and [KERNBASE - KERNBASE + 4 MB] these tow virtual memory space. Though `cr3` changed and EIP is still low, instructions can still be fetched.
-
-The transition is necessary so that user application's stack will not corrupt kernel's space if lower virtual memory space is mapped to kernel's space.
-
-### Challenge
-
-#### Allow user to reach 4GB memory space
-
-* User/Kernel Mode transition
-
-    因为用户可以访问4G的虚拟内存空间，每一个进程必须独占所有的内存空间，因此用户必须触发中断来切换至内核态。
-    每一个进程都需要在内存空间中维护一个IDT，其中一个entry必须实现向内核态的转换。
-    内核也需要一个属于自己的IDT在结束后返回到原来的进程。
-
-    在应用和内核态切换时，需要把内存中原有的数据全部swap out，再行swap in。
-
-* Physical Memory Access and I/O device access
-
-    由于虚拟内存空间可以和物理内存实现1-1映射，内核访问内存就可以直接访问而不需要翻译。
-    不过无论是内核态还是用户态，都需要在内存空间中维护一部分空间用于存放IDT，已分配页。
-    I/O设备访问可以通过调用中断，向I/O设备进行输出。
-
-* how the kernel would access a user environment's virtual address space
-
-    用户态应用可以把需要传给内核的参数保存在一些寄存器中，然后内存被swap后可以将这些参数存到内存空间中。
-    如果用户传递的是内存地址，可以在swap后再次swap in 用户内存，拷贝部分内存到内核态，在内核空间中纪录关联，并在返回后根据需要进行更新。
-
-* Advantage
-
-    让用户可以访问整个4G的内存空间能简化内存访问方式，不需要庞大的page table来做地址的翻译。
-
-* Disadvantage
-
-    效率低下，由于进程切换需要更换内存内容，反复的swap会带来高昂的overhead。
-    每一时刻整个内存空间都由一个进程所独占，不同进程间共享内存实现困难。
+* `env_init()`函数调用发生在`mem_init()`之后，负责初始化`envs`这一数组和`env_free_list`。
+  同时还要对每个CPU进行部分初始化。
+* `env_setup_vm()`函数完成对`env` `UTOP`以上的虚拟内存的映射。
+  因为对于所有的environments来说，初始化时`UTOP`以上的虚拟地址空间都是一样的（除了`UVPT`所在的那一个page以外），初始化时只需要将内核的page directory tabl复制过去即可。
+  User env的page directory table所在的页需要手动管理它的reference counter，`page_free()`才能正常地free这一page。
+* `region_alloc()`这个函数分配`len`字节的物理内存空间，并映射到environment的`va`虚拟地址空间。  
+  但真实情况下物理内存的分配都是以page为最小单位，所以需要对`va`向下对齐，对`va + len`向上对齐，再从物理内存中分配相应大小的资源。
+* `load_icode`函数将一个二进制可执行文件加载到一个environment中，首先检查二进制文件是否是ELF格式的可执行文件，再接着读取ELF文件的头部，将ELF文件的`.text`, `.data`等部分通过`region_alloc()`加载到相应的内存地址。  
+  因为ELF的`.text`等部分应加载到environment对应的内存空间，所以在复制之前需要将`CR3`寄存器变成environment的page directory的物理地址。在复制完成后恢复到kernel的page directory的物理地址。
+* `env_create()`根据给定的二进制文件创建一个environment，并设置其类型为给定的`type`。
+* `env_run()`的发生意味着context switch，如果`curenv`非空且处于正在运行状态，就将其状态置为可运行。将`curenv`改为新的environment，再把新的environment标为正在运行，切换`CR3`，最后需要`env_pop_tf()`将trap frame中的状态恢复。
