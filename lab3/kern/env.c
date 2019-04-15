@@ -258,8 +258,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_tf.tf_esp = USTACKTOP;
 	e->env_tf.tf_cs = GD_UT | 3;
 	// You will set e->env_tf.tf_eip later.
-	// FIXME: correct?
-	e->env_tf.tf_eip = 0;
 
 	// commit the allocation
 	env_free_list = e->env_link;
@@ -358,6 +356,8 @@ load_icode(struct Env *e, uint8_t *binary)
 	if (((struct Elf *)binary)->e_magic != ELF_MAGIC) {
 		panic("load_icode: binary not in ELF format");
 	}
+
+	e->env_tf.tf_eip = ((struct Elf *)binary)->e_entry;
 
 	struct Proghdr *ph, *eph;
 	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
