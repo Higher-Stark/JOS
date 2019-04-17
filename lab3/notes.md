@@ -160,3 +160,11 @@ JOS使用`sbrk`来增加`env`的堆大小，需要在`struct Env`中加入一个
 否则就是用户程序发生了page fault。对用户态的page fault，如果地址大于ULIM，或者遍历用户态程序的page directory，不存在对应的页或者没有足够的权限,说明都属于非法访问。
 
 * 内核`backtrace`时，会读取`%ebp`的值，从而访问上一级栈地址。从输出看，`backtrace`首先输出了内核monitor的栈，然后找到用户态的栈，在访问用户态的栈时，由于内核并没有数据放在对应的内存地址，所以触发了内核的page fault。
+
+#### Exercise 12
+
+程序直接调用`sys_cputs()`访问内核空间，并不会发生page fault，但是用户态并不能访问内核空间，直接会出错程序结束。内核并不会page fault。
+
+#### Exercise 13
+
+程序通过`sgdt`获得GDT地址后，调用系统函数`sys_map_kernel_page`将GDT映射到了一块用户态内存，并向GDT中插入了一条用户态的callgate，使用`lcall`将程序切换到ring0并访问内存空间，并且向控制台输出。最后通过`lret`切换回ring3，从而使得用户态程序在用户态下快速调用特权函数。
