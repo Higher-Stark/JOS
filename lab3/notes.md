@@ -113,3 +113,36 @@ struct Trapframe {
 `_alltraps`会调用`trap()`函数，`trap()`会返回，`_alltraps`需要把`Trapframe`中保存的状态恢复回去，最后`iret`返回到用户态。
 
 不清楚为什么这个lab里在`trapentry.S`中定义一个全局的`vectors`指向所有trap handler这一数组, `trap.c`中却并不能正确的得到一个函数数组，采用文档中`void NAME()`的方法将每个handler设置到IDT中。
+
+### Part B
+
+#### Exceptions for page fault, breakpoint and system call
+
+All these exceptions and interrupts can be achieved by interrupting an appropriate number. Then dispatcher invokes the coresponding handler.
+
+#### Exercise 8
+
+`sysenter`是一个比`int 0x30`更快的实现系统调用的方法，能使用户态的代码快速调用内核态的程序。
+
+`sysenter`将参数保存在寄存器中，将`IA32_SYSENTER_CS`指向的内核程序地址加载到`CS`，将`IA32_SYSENTER_ESP (0x175)`指向的内核栈地址加载到`%esp`，将`IA32_SYSENTER_EIP (0x176)`对应的`sysenter`的`handler`地址加载到`%eip`，并将CPU从Ring 3切换到Ring 0，`EFLAGS`也会被清空。这样程序就快速地进入了内核态。
+
+`sysenter`内根据`syscall`的调用规则，将寄存器中的参数压栈，然后调用`syscall`。`syscall`返回后，调用`sysexit`返回到用户态。
+
+`sysexit`返回时会将`CS`设为`IA32_SYSENTER_CS + 16`，将`%eip`设为`%edx`，将`SS`设为`IA32_SYSENTER_CS + 24`，将`%esp`设为`%ecx`。而进入`sysenter`的handler前，用户态`sysenter`下一条指令和`%esp`分别保存在`%esi`和`%ebp`中，需要手动设置。
+
+`sysenter`没有`trap frame`，所以调用`sysenter`前，需要手动保存寄存器的值并在调用后恢复。
+
+#### Exercise 9
+
+`curenv`是内核的数据结构，不应被用户态访问，`thisenv`做到了隔离。
+
+_之前在`syscall`中没有注册`sys_env_destroy`的handler，导致程序落入了`args_exist`最后的循环中, 程序检查还是很重要。_
+
+#### Exercise 10
+
+JOS使用`sbrk`来增加`env`的堆大小，需要在`struct Env`中加入一个`brk`值表示当前堆顶的内存地址。
+因为文档中说明`sys_sbrk`只增大堆，不需要为`struct Env`记录堆底的内存地址或者当前堆的大小。
+
+根据JOS的虚拟内存空间分布，堆的位置在`.text`, `.data`, `.bss`等上部，这些部分在`load_icode`中会被加载到内存中，并且大小不会在运行时改变。堆向上生长，上方有用户态的运行栈，向下生长，所以将堆顶的初始位置高于`.text`, `.data`, `.bss`等的任何一部分，就可以了。
+
+增大的操作与`region_alloc`相似，但是`region_alloc`会确保分配的内存空间一定会覆盖要求的`va, va+len`。但是在这里，`brk`所在的页必然是已经分配的了，一开始在`load_icode`中由于某一部分数据的需要，分配了一定的页，最后一页恰好还有剩余的空间，`brk`就可以利用这部分剩余的空间。因此在实现`sys_sbrk`使对`brk`做roundup后再看是否有必要分配新的页。

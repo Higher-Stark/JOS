@@ -77,7 +77,25 @@ static int
 sys_sbrk(uint32_t inc)
 {
     // LAB3: your code here.
-    return 0;
+
+	int r;
+	// the page brk resides is allocated already, 
+	// no need to alloc again!
+	uintptr_t vfloor = ROUNDUP(curenv->brk, PGSIZE);
+	uintptr_t vceil = ROUNDUP(curenv->brk + inc, PGSIZE);
+	for (uintptr_t i = vfloor; i != vceil; i += PGSIZE) {
+		struct PageInfo *p = page_alloc(!ALLOC_ZERO);
+		if (!p)
+			panic("region alloc: allocation failed for %08ld\n", (uintptr_t)i);
+		
+		r = page_insert(curenv->env_pgdir, p, (void *)i, PTE_U | PTE_W);
+		if (r != 0)
+			panic("region alloc: page insert failed, %e", r);
+		
+	}
+
+	curenv->brk += inc;
+	return curenv->brk;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -88,9 +106,21 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
 
-	panic("syscall not implemented");
-
 	switch (syscallno) {
+	case SYS_cputs:
+		sys_cputs((const char *)a1, (size_t)a2);
+		return 0;
+	case SYS_cgetc:
+		return sys_cgetc();
+	case SYS_getenvid:
+		return sys_getenvid();
+	case SYS_env_destroy:
+		return sys_env_destroy((envid_t) a1);
+	case SYS_map_kernel_page:
+		return sys_map_kernel_page((void *)a1, (void *)a2);
+	case SYS_sbrk:
+		return sys_sbrk(a1);
+	case NSYSCALLS:
 	default:
 		return -E_INVAL;
 	}

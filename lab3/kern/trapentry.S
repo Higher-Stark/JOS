@@ -125,3 +125,16 @@ trapret:
   popl %ds
   addl $0x8, %esp  # trapno and errcode
   iret
+
+.text
+.globl sysenter_handler
+sysenter_handler:
+	pushl %edi
+	pushl %ebx
+	pushl %ecx
+	pushl %edx
+	pushl %eax
+	call syscall
+	movl %ebp, %ecx
+	movl %esi, %edx
+	sysexit

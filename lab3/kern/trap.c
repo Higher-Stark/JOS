@@ -79,39 +79,44 @@ extern void vector17 ();
 extern void vector18 ();
 extern void vector19 ();
 
+extern void vector48 ();
+
+extern void sysenter_handler();
+
 void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-	/*int i = 0;
-	for (; i != 20; i++) {
-		int dpl = 0;
-		if ( i == T_BRKPT || i == T_OFLOW || i == T_BOUND) dpl = 3;
-		SETGATE(idt[i], 0, GD_KT, vectors[i], 3);
-	}*/
-	SETGATE(idt[T_DIVIDE ], 0, GD_KT, vector0 , 0);
-	SETGATE(idt[T_DEBUG ], 0, GD_KT, vector1 , 0);
-	SETGATE(idt[T_NMI ], 0, GD_KT, vector2 , 0);
-	SETGATE(idt[T_BRKPT ], 0, GD_KT, vector3 , 3);
-	SETGATE(idt[T_OFLOW ], 0, GD_KT, vector4 , 3);
-	SETGATE(idt[T_BOUND ], 0, GD_KT, vector5 , 3);
-	SETGATE(idt[T_ILLOP ], 0, GD_KT, vector6 , 0);
-	SETGATE(idt[T_DEVICE ], 0, GD_KT, vector7 , 0);
-	SETGATE(idt[T_DBLFLT ], 0, GD_KT, vector8 , 0);
-	SETGATE(idt[9 ], 0, GD_KT, vector9 , 0);
-	SETGATE(idt[T_TSS ], 0, GD_KT, vector10 , 0);
-	SETGATE(idt[T_SEGNP ], 0, GD_KT, vector11 , 0);
-	SETGATE(idt[T_STACK ], 0, GD_KT, vector12 , 0);
-	SETGATE(idt[T_GPFLT ], 0, GD_KT, vector13 , 0);
-	SETGATE(idt[T_PGFLT ], 0, GD_KT, vector14 , 0);
-	SETGATE(idt[15 ], 0, GD_KT, vector15 , 0);
-	SETGATE(idt[T_FPERR ], 0, GD_KT, vector16 , 0);
-	SETGATE(idt[T_ALIGN ], 0, GD_KT, vector17 , 0);
-	SETGATE(idt[T_MCHK ], 0, GD_KT, vector18 , 0);
+	SETGATE(idt[T_DIVIDE  ], 0, GD_KT, vector0 , 0);
+	SETGATE(idt[T_DEBUG   ], 0, GD_KT, vector1 , 0);
+	SETGATE(idt[T_NMI     ], 0, GD_KT, vector2 , 0);
+	SETGATE(idt[T_BRKPT   ], 0, GD_KT, vector3 , 3);
+	SETGATE(idt[T_OFLOW   ], 0, GD_KT, vector4 , 3);
+	SETGATE(idt[T_BOUND   ], 0, GD_KT, vector5 , 3);
+	SETGATE(idt[T_ILLOP   ], 0, GD_KT, vector6 , 0);
+	SETGATE(idt[T_DEVICE  ], 0, GD_KT, vector7 , 0);
+	SETGATE(idt[T_DBLFLT  ], 0, GD_KT, vector8 , 0);
+	SETGATE(idt[9         ], 0, GD_KT, vector9 , 0);
+	SETGATE(idt[T_TSS     ], 0, GD_KT, vector10 , 0);
+	SETGATE(idt[T_SEGNP   ], 0, GD_KT, vector11 , 0);
+	SETGATE(idt[T_STACK   ], 0, GD_KT, vector12 , 0);
+	SETGATE(idt[T_GPFLT   ], 0, GD_KT, vector13 , 0);
+	SETGATE(idt[T_PGFLT   ], 0, GD_KT, vector14 , 0);
+	SETGATE(idt[15        ], 0, GD_KT, vector15 , 0);
+	SETGATE(idt[T_FPERR   ], 0, GD_KT, vector16 , 0);
+	SETGATE(idt[T_ALIGN   ], 0, GD_KT, vector17 , 0);
+	SETGATE(idt[T_MCHK    ], 0, GD_KT, vector18 , 0);
 	SETGATE(idt[T_SIMDERR ], 0, GD_KT, vector19 , 0);
-	// SETGATE(idt[T_SYSCALL], 1, GD_KT, vectors[T_SYSCALL], 3); // 3 for DPL_USER
+
+	// for sys_call
+	SETGATE(idt[T_SYSCALL ], 0, GD_KT, vector48, 3);
+
+	// MSRs configuration
+	wrmsr(0x174, GD_KT, 0);
+	wrmsr(0x175, KSTACKTOP, 0);
+	wrmsr(0x176, sysenter_handler, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -193,6 +198,20 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 3: Your code here.
 	if (tf->tf_trapno == T_PGFLT) {
 		page_fault_handler(tf);
+		return;
+	}
+	else if (tf->tf_trapno == T_BRKPT) {
+		monitor(tf);
+		return;
+	}
+	else if (tf->tf_trapno == T_SYSCALL) {
+		tf->tf_regs.reg_eax = syscall(
+				tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi);
 		return;
 	}
 

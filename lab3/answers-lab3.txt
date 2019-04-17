@@ -2,3 +2,8 @@
 如果用一个handler来处理，那么trap number就失去了作用，就当前的设计，OS无法识别触发中断/异常的代码的特权等级，会有安全隐患。
 
 2. 不需要，`user/softint`使用`int $14`来产生一个page fault exception，但是14号异常是privileged的指令才能触发的，用户态执行`int $14`后OS会发现用户并没有权限触发page fault，就会产生一个general protection fault。最后还是实现了13号异常的触发。
+
+3. 因为断点是用户态代码可以执行的，如果在Interrupt Descriptor Table中将断点异常的Descriptor Privilege Level(DPL)设为内核级，那用户态的断点异常就会因为等级不够触发general protection fault。最后还是实现了13号异常的触发。
+为了能让用户态的断点正常工作，在初始化IDT时需要将断点异常的DPL level设为ring 3，即用户级可触发。
+
+4. 要点在于区分不同异常的触发等级，给用户态程序一定的可触发异常，将一些对系统运行至关重要的异常只允许内核态程序触发，如page fault。最后还是实现了13号异常的触发。

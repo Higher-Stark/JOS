@@ -363,6 +363,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
 	eph = ph + ((struct Elf *)binary)->e_phnum;
 
+	uintptr_t btm = 0;
 	// change page directory to the env's
 	lcr3(PADDR(e->env_pgdir));
 
@@ -371,7 +372,11 @@ load_icode(struct Env *e, uint8_t *binary)
 		region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 		memset((void *)ph->p_va, 0, ph->p_memsz);
 		memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+		
+		uintptr_t top = ph->p_va + ph->p_memsz;
+		if (top > btm) btm = top;
 	}
+	e->brk = btm;
 
 	// restore cr3
 	lcr3(PADDR(kern_pgdir));

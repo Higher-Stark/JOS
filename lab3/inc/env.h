@@ -52,6 +52,8 @@ struct Env {
 	unsigned env_status;		// Status of the environment
 	uint32_t env_runs;		// Number of times environment has run
 
+	uintptr_t brk;		// heap top
+
 	// Address space
 	pde_t *env_pgdir;		// Kernel virtual address of page dir
 };
