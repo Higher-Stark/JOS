@@ -33,3 +33,12 @@ As code in `kern/mpentry.S` is loaded to virtual address at `MPENTRY_PADDR`, and
 If no `MPBOOTPHYS`, the absolute addresses of symbols is likely to point to somewhere else. APs can't be initialized properly then and the BSP will be blocked.
 
 Entry of code in `boot/boot.S` is assigned to `0x7c00`, as `boot/Makefrag` tells linkder. So `boot/boot.S` has no need for calcalations like `MPBOOTPHYS(s)`.
+
+### Exercise 3
+
+`percpu_kstacks` prepared `NCPU * KSTKSIZE` bytes space for `NCPU` CPU's kernel stacks. 
+As `memlayout.h` shows, kernel stack for CPU i is located at `[KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTACKTOP - i *(KSTKSIZE + KSTKGAP)]`. And `KSTKGAP` bytes below CPU i's kernel stack is not backed by physical memory thus fault when the kernel stack overflows, making it the kernel stack guard.
+
+So we just need to map `[KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTACKTOP - i *(KSTKSIZE + KSTKGAP)]` to the physical address of `percpu_kstacks[i]`.
+
+### Exercise 4
