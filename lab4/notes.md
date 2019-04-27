@@ -46,3 +46,5 @@ So we just need to map `[KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTACK
 As each CPU needs a TSS, we just make each CPU's TSS pointed to a unique TSS. And the global `ts` is deprecated.
 
 __But you may find it not working, that's to say, finding other CPUs won't boot and BSP reboots. If you are confident about the correctness of the implementation, go check if you enable the PSE bit, which is a challenge in the former lab. Disable the PSE bit and just use 4K mapping, APs should boot normally. Why? Good question, I will try to find it out later.__
+
+Why enable PSE failed to boot APs and cause rebooting of BSP? My assumption is when APs entered protected mode and turn on paging, the address is expected to be interpreted by two-level page table. But the kernel space is mapped with large page, the MMU can't retrieve the expected data from memory and raise fault. Probably the failure is reported to BSP and causes the BSP to reboot.
