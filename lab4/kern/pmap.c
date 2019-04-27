@@ -221,8 +221,9 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// TODO: Your code goes here:
-	boot_map_region_large(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
-	lcr4(rcr4() | CR4_PSE);
+	// boot_map_region_large(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
+	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
+	// lcr4(rcr4() | CR4_PSE);
 
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
@@ -322,16 +323,12 @@ page_init(void)
 		pages[i].pp_ref = 1;
 		pages[i].pp_link = NULL;
 	}
-	for (; i < PTX(MPENTRY_PADDR); i++) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
-	for (; i == PTX(MPENTRY_PADDR); i++) {
-		pages[i].pp_ref = 1;
-		pages[i].pp_link = NULL;
-	}
 	for (; i < npages_basemem; i++) {
+		if (i == PGNUM(MPENTRY_PADDR)) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+			continue;
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -642,7 +639,9 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	size = ROUNDUP(size, PGSIZE);
+	physaddr_t pa_top = ROUNDUP(pa + size, PGSIZE);
+	pa = ROUNDDOWN(pa, PGSIZE);
+	size = pa_top - pa;
 
 	if (base + size > MMIOLIM)
 		panic("mmio_map_region: overflow MMIOLIM");

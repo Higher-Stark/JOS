@@ -42,3 +42,7 @@ As `memlayout.h` shows, kernel stack for CPU i is located at `[KSTACKTOP - i * (
 So we just need to map `[KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTACKTOP - i *(KSTKSIZE + KSTKGAP)]` to the physical address of `percpu_kstacks[i]`.
 
 ### Exercise 4
+
+As each CPU needs a TSS, we just make each CPU's TSS pointed to a unique TSS. And the global `ts` is deprecated.
+
+__But you may find it not working, that's to say, finding other CPUs won't boot and BSP reboots. If you are confident about the correctness of the implementation, go check if you enable the PSE bit, which is a challenge in the former lab. Disable the PSE bit and just use 4K mapping, APs should boot normally. Why? Good question, I will try to find it out later.__
