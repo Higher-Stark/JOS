@@ -321,6 +321,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_map_kernel_page((void *)a1, (void *)a2);
 	case SYS_sbrk:
 		return sys_sbrk(a1);
+	case SYS_yield:
+		sys_yield();
+		return 0;
 	case NSYSCALLS:
 	default:
 		return -E_INVAL;

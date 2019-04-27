@@ -48,3 +48,41 @@ As each CPU needs a TSS, we just make each CPU's TSS pointed to a unique TSS. An
 __But you may find it not working, that's to say, finding other CPUs won't boot and BSP reboots. If you are confident about the correctness of the implementation, go check if you enable the PSE bit, which is a challenge in the former lab. Disable the PSE bit and just use 4K mapping, APs should boot normally. Why? Good question, I will try to find it out later.__
 
 Why enable PSE failed to boot APs and cause rebooting of BSP? My assumption is when APs entered protected mode and turn on paging, the address is expected to be interpreted by two-level page table. But the kernel space is mapped with large page, the MMU can't retrieve the expected data from memory and raise fault. Probably the failure is reported to BSP and causes the BSP to reboot.
+
+### Exercise 5
+
+```C
+lock_kernel();
+
+// Starting non-boot CPUs
+boot_aps();
+```
+
+Because all processors share one kernel, no APs should take control of the kernel before BSP yields control on kernel. 
+
+For processor state is only changed by kernel, if a processor is halted, it is in ring 0. To start up, grap the kernel lock first.
+But if trapped from user level, the processor must grab the lock first, then handles the trap.
+
+In `env_run()`, the processor is about to leave the kernel level to user level. 
+The operations to change `curenv`, `cr3` must be in kernel modes, as `env_pop_tf()` is a non-return function, we release the kernel lock before the call.
+
+### Question 2
+
+The big kernel lock prevents from two processors to execute kernel code, but some operations can't be stopped with the lock, for example, trap. When trap occurs, the hardware automaticly pushes some registers onto the kernel stack, whichever processor holds the lock. If only one kernel stack, the origin trap frame will be overwritten.
+
+### Exercise 6
+
+Round Robin scheduling treats each environment equally. For now, the scheduling only happens when an environment voluntarily gives up the processor or an environment completes.
+
+We just record the last running environment in `curenv`, and choose an environment in the back or start from the head of the `envs`.
+
+### Question 3
+
+For `e` is in kernel space, and every environment has the same memory mapping to kernel space. The switch of addressing doesn't affect memory to kernel space text nor data.
+
+### Question 4
+
+Old environment's registers must be stored, so when scheduler decides to continue this environment, the environment is able to continue like nothing has happened.
+
+The registers are saved in environment's trap frame.
+
