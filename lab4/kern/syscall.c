@@ -174,6 +174,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if ((uintptr_t)va >= UTOP) return -E_INVAL;
 	if ((uintptr_t)va != ROUNDDOWN((uintptr_t)va, PGSIZE)) return -E_INVAL;  // not page-aligned
 
+	if (!(perm & (PTE_U | PTE_P))) return -E_INVAL;   // PTE_U | PTE_P not set
 	if (perm & ~PTE_SYSCALL) return -E_INVAL;         // perm is inappropriate
 
 	struct PageInfo *p = page_alloc(ALLOC_ZERO);
@@ -223,6 +224,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	r = envid2env(dstenvid, &dst_env, 1);
 	if (r < 0) return r;
 
+	if (!(perm & (PTE_U | PTE_P))) return -E_INVAL;   // PTE_U | PTE_P not set
 	if (perm & ~PTE_SYSCALL) return -E_INVAL;    // inapproriate permission
 
 	if ((uintptr_t)srcva >= UTOP) return -E_INVAL;          // srcva in kernel space

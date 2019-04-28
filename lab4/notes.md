@@ -86,3 +86,16 @@ Old environment's registers must be stored, so when scheduler decides to continu
 
 The registers are saved in environment's trap frame.
 
+### Exercise 7 
+
+`sys_exofork()` fork an environment according to parent environment, but doesn't copy any memory mapping. As parent environment's status is saved in trap frame, I just make an copy of parent environment's trap frame for new environment. 
+But `sys_exofork` returns different values to parent environment and child environment, child environment's id for the former and 0 for the latter. As child environment get the result from `$eax` but parent get it by return statement, just change child environment's trap frame's `reg_eax` to 0.
+
+`sys_env_set_status()` sets target environment's status to `status`. Setting the third parameter to 1 to ensure current environment has the permission to manipulate the target environment.
+
+`sys_page_alloc()` allocate a page at virtual address `va` in target environment's virtual memory space. Like `sys_env_set_status()`, current environment must have the permission to manipulate the target environment. 
+For the permission on the new page, first check the `PTE_U` and `PTE_P` bit which is necessary and then zero the possible bit to validation.
+
+`sys_page_map()` makes source environment and destination environment share the same physical page which `srcva` points to in source environment.
+
+`sys_page_unmap()` unmaps `va` address to a physical address.
