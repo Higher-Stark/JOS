@@ -4,7 +4,7 @@
 
 This lab makes JOS capable of running multiple CPUs and multitasking, though only SMP(symmetric multiprocessing) model supported.  
 
-## Part 1
+## Part A
 
 ### Goals
 
@@ -99,3 +99,51 @@ For the permission on the new page, first check the `PTE_U` and `PTE_P` bit whic
 `sys_page_map()` makes source environment and destination environment share the same physical page which `srcva` points to in source environment.
 
 `sys_page_unmap()` unmaps `va` address to a physical address.
+
+## Part B
+
+Now the JOS allows user to create new environments by `fork()`. But for now before starting up the new environment, user must manually copy the parent's memory to the child. Cloning the memory is quite an expensive operation. 
+
+Nowadays Unix take advantages of COW (copy-on-write) to make `fork()` more quickly. 
+That is when fork, the memory of parent environment is marked read-only. Once either the child or parent tries to write, a page fault is triggered. Then kernel takes control and make a new copy of the read-only part, marks it as writable and replaces the mapping in the environment's page table. 
+Then redo the operation triggered the page fault.
+And the environment is able to continue.
+
+This part is to implement a Unix like `fork()` with copy-on-write.
+
+### Exercise 8
+
+Handing the user level page fault to user-level page fault handler makes it more flexible and less bug demaging. That demands a user-level page fault handler registration in the target environment.
+
+### Exercise 9
+
+To dispatch page fault to user exception handler, we need to transfer necessary informations to user level trap frame. As user exception stack's space is quite limited, once run out, page faults and faults again.
+
+One point to take notice, `page_fault_handler()` is run at kernel level. In that case directly calling user level exception handler is forbidden. 
+To change the ring and dispatch, `page_fault_handler()` puts user exception handler entry and user exeption stack address into trap frame. `env_run()` changes the ring and enter the user exception handler.
+
+### Exercise 10
+
+As user trap frame show below, 
+
+```C
+struct UTrapframe {
+	/* information about the fault */
+	uint32_t utf_fault_va;	/* va for T_PGFLT, 0 otherwise */
+	uint32_t utf_err;
+	/* trap-time return state */
+	struct PushRegs utf_regs;
+	uintptr_t utf_eip;
+	uint32_t utf_eflags;
+	/* the trap-time stack to return to */
+	uintptr_t utf_esp;
+} __attribute__((packed));
+```
+
+`utf_esp` is above `utf_eip`. Before restoring registers, we must put `utf_eip` to another place. 
+As `utf_esp` points to the stack bottom which trapped or last user level exception stack's bottom. It is better to put `utf_eip` right under `utf_esp` and decrease `utf_esp`.
+
+### Exercise 11
+
+User exception stack is only needed when user level exception handler is specified. Thus allocating page for user exception stack when specified. 
+If change handler to another, no need to allocate again.
