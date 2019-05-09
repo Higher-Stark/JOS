@@ -166,3 +166,40 @@ Then we call `sys_page_map` for child env. The child's user stack will be mapped
 If the page is read-only, we just mapped it read-only in child env's.
 
 `pgfault` first checks and panics if it is not triggered by writing to a copy-on-write page. We just duplicate the page and replace the old mapping. Then the program resumes.
+
+## Part C: Preemptive Multitasking and Inter-Process communication
+
+So far the JOS can't gains the control of the CPU only when the program gives up voluntarily. 
+This part first implements preemptive multitasking. Simply schedule the envs with round-robin policy when hardware clock interrupt occurs. That is, hardware clock interrupt must be enabled and we need to set the schedule routine.
+
+In this part, envs on JOS communicate simply by IPC, mostly a model of shared memory.
+
+### Exercise 13
+
+Hardware clock interrupt is a interrupt request. For x86, we set a interrupt descriptor entry at `IRQ_OFFSET + IRQ_TIMER` in interrupt descriptor table.
+
+`sti` enables `IF` flag in `EFLAGS`. As interrupt is disabled in kernel mode, when we run a user level env with `env_run()`, we should execute `sti`.
+
+When we run `spin`, the program will trap with `trapno = 32 // Hardware clock`.
+
+### Exercise 14
+
+Once we trapped with a hardware clock interrupt, we call `sched_yield()` and gives up the control on CPU. Preemptive multitasking is roughly achieved.
+
+One point is that acknowledge the interrupt before call `sched_yield()`.
+
+**TODO: why?**
+
+### Exercise 15
+
+The design of IPC in JOS is that receiver enters receiving status and yields and sender finds the receiver and hands data to receiver and wake up receiver.
+
+The design allow two envs to transfer up to a 32 bit value and a page. The value will be stored in env's `env_ipc_value` while the page is reference by address in `env_ipc_dstva`.
+
+As the kernel is protected by one lock, no race will occur for multiple sender to modify receiver env. 
+
+Some times receiver don't need a page, or sender is not intended to send a page, we can set `pg` to `UTOP`. Though 0 is possily ok, but 0 is below `UTOP` and considered valid in some way. Thus `UTOP` is a better option.
+
+As IPC happens whatever relation is between sender and receiver, 0 is the third parameter for `envid2env()` but `sys_page_map()` is not approriate to change receiver's memory address space.
+
+`sys_ipc_recv()` calls `sched_yield()` right after setting up curenv. And `sched_yield()` doesn't return. So to return 0 must be done by `sys_ipc_try_send()` by specify the saved registers in receiver's trap frame to be 0.

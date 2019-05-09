@@ -321,7 +321,44 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	int r;
+
+	struct Env *remoteEnv;
+	r = envid2env(envid, &remoteEnv, 0);
+	if (r < 0) return r;
+	if (!remoteEnv->env_ipc_recving)  // remote env is not block in recving
+		return -E_IPC_NOT_RECV;
+
+	if (srcva < (void *)UTOP) {
+		
+		if ((srcva != ROUNDDOWN(srcva, PGSIZE)) ||            // page-aligned ?
+				((perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P)) ||  // PTE_P and PTE_U set ?
+				(perm & ~PTE_SYSCALL))                            // approriate perm ?
+			return -E_INVAL;
+
+		// src is not mapped in caller's address space
+		pte_t *entry;
+		struct PageInfo *p = page_lookup(curenv->env_pgdir, srcva, &entry);
+		if (!p ||     																				// srcva not mapped
+				((perm & PTE_W) && !(*entry & PTE_W)))            // read-only
+			return -E_INVAL;
+
+		if (remoteEnv->env_ipc_dstva < (void *)UTOP) {
+			r = page_insert(remoteEnv->env_pgdir, p, remoteEnv->env_ipc_dstva, perm);
+			if (r < 0) return r;
+		}
+	}
+
+	remoteEnv->env_ipc_recving = false;
+	remoteEnv->env_ipc_from = curenv->env_id;
+	remoteEnv->env_ipc_value = value;
+	remoteEnv->env_ipc_perm = perm;
+
+	remoteEnv->env_tf.tf_regs.reg_eax = 0;
+	remoteEnv->env_status = ENV_RUNNABLE;
+
+	return 0;
+	// panic("sys_ipc_try_send not implemented");
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -339,7 +376,16 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+	if ((uintptr_t)dstva < UTOP && dstva != ROUNDDOWN(dstva, PGSIZE))
+		return -E_INVAL;
+
+	curenv->env_ipc_recving = true;
+	curenv->env_ipc_dstva = dstva;
+
+	curenv->env_status = ENV_NOT_RUNNABLE;
+
+	sched_yield();
+	// panic("sys_ipc_recv not implemented");
 	return 0;
 }
 
@@ -417,9 +463,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_env_set_pgfault_upcall:
 		return sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2);
 	case SYS_ipc_try_send:
-		panic("syscall: ipc try send not mapped\n");
+		return sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void *)a3, (unsigned int)a4);
 	case SYS_ipc_recv:
-		panic("syscall: ipc recv not mapped\n");
+		return sys_ipc_recv((void *)a1);
 	case NSYSCALLS:
 	default:
 		return -E_INVAL;

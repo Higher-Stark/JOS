@@ -28,9 +28,8 @@ pgfault(struct UTrapframe *utf)
 	extern volatile pte_t uvpt[];
 	pte_t entry = uvpt[PGNUM(addr)];
 	if ((err & FEC_WR) == 0)
-		panic("pgfault: fault access is expect to be write");
-	// if ((entry & PTE_P) == 0)
-	// 	panic("pgfault: page doesn't exists");
+		panic("pgfault: fault access %08p is expect to be write", addr);
+
 	if ((entry & PTE_COW) == 0)
 		panic("pgfault: COW flag not found, fault va %08p", addr);
 
