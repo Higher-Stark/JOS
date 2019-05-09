@@ -147,3 +147,22 @@ As `utf_esp` points to the stack bottom which trapped or last user level excepti
 
 User exception stack is only needed when user level exception handler is specified. Thus allocating page for user exception stack when specified. 
 If change handler to another, no need to allocate again.
+
+### Exercise 12
+
+`fork()` function first sets parent process's page fault handler to handle page fault on copy-on-write pages. 
+Then it creates the child environment. And copy memory address space to child environment. The space ranges from `UTEXT` to `USTACKTOP`. It is ok to traverse each page in the range and check the need to copy. But walk through the page directory and page tables saves some effort. 
+User level exception stack is not shared between two envs, parent should prepare a different page as user exception stack for its child env.
+As user stack is set as copy-on-write, once the child env starts to run, page fault on user stack. Thus parent env must prepare the page fault handler for child env. 
+Now the child is ready to run.
+
+`duppage()` copys parent memory space mapping to child's. If one page is writable, it should be set as copy-on-write both in parent's and child's. 
+**One point is the sequence of map. Child env does first and parent does next.**
+Reason: As for most pages, the wrong sequence doesn't make any difference. But for user stack, it does. 
+First, we denote the current page where `%esp` resides as page A. 
+Next we set page A as copy-on-write. When returning from `sys_page_map`, the stack changes leading to page fault. The page fault handler duplicates the current page and marks it as writable. We denotes the new page as page B. 
+Then we call `sys_page_map` for child env. The child's user stack will be mapped to page B instead page A. Obviously this breaks down the memory space isolation between two envs. And page A make no sense to child env.
+
+If the page is read-only, we just mapped it read-only in child env's.
+
+`pgfault` first checks and panics if it is not triggered by writing to a copy-on-write page. We just duplicate the page and replace the old mapping. Then the program resumes.
