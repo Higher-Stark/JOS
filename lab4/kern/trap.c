@@ -86,7 +86,25 @@ extern void vector17 ();
 extern void vector18 ();
 extern void vector19 ();
 
+extern void vector32 ();
+extern void vector33 ();
+extern void vector34 ();
+extern void vector35 ();
+extern void vector36 ();
+extern void vector37 ();
+extern void vector38 ();
+extern void vector39 ();
+extern void vector40 ();
+extern void vector41 ();
+extern void vector42 ();
+extern void vector43 ();
+extern void vector44 ();
+extern void vector45 ();
+extern void vector46 ();
+extern void vector47 ();
 extern void vector48 ();
+
+extern void vector51 ();
 
 extern void sysenter_handler();
 
@@ -117,6 +135,24 @@ trap_init(void)
 	SETGATE(idt[T_MCHK    ], 0, GD_KT, vector18 , 0);
 	SETGATE(idt[T_SIMDERR ], 0, GD_KT, vector19 , 0);
 
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER   ], 0, GD_KT, vector32, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_KBD     ], 0, GD_KT, vector33, 0);
+	SETGATE(idt[IRQ_OFFSET + 2					 ], 0, GD_KT, vector34, 0);
+	SETGATE(idt[IRQ_OFFSET + 3					 ], 0, GD_KT, vector35, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL  ], 0, GD_KT, vector36, 0);
+	SETGATE(idt[IRQ_OFFSET + 5					 ], 0, GD_KT, vector37, 0);
+	SETGATE(idt[IRQ_OFFSET + 6					 ], 0, GD_KT, vector38, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, vector39, 0);
+	SETGATE(idt[IRQ_OFFSET + 8					 ], 0, GD_KT, vector40, 0);
+	SETGATE(idt[IRQ_OFFSET + 9					 ], 0, GD_KT, vector41, 0);
+	SETGATE(idt[IRQ_OFFSET + 10					 ], 0, GD_KT, vector42, 0);
+	SETGATE(idt[IRQ_OFFSET + 11					 ], 0, GD_KT, vector43, 0);
+	SETGATE(idt[IRQ_OFFSET + 12					 ], 0, GD_KT, vector44, 0);
+	SETGATE(idt[IRQ_OFFSET + 13					 ], 0, GD_KT, vector45, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_IDE     ], 0, GD_KT, vector46, 0);
+	SETGATE(idt[IRQ_OFFSET + 15					 ], 0, GD_KT, vector47, 0);
+
+	SETGATE(idt[IRQ_OFFSET + IRQ_ERROR   ], 0, GD_KT, vector51, 0);
 	// for sys_call
 	SETGATE(idt[T_SYSCALL ], 0, GD_KT, vector48, 3);
 
