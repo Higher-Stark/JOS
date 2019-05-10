@@ -179,6 +179,84 @@ fork(void)
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+// DEBUG option
+#ifndef _DEBUG
+#define _DEBUG 0
+#endif
+
+	int r;
+
+	set_pgfault_handler(pgfault);  // set parent env's page fault handler
+
+	// fork
+	envid_t child = sys_exofork();
+	if (child < 0) 
+	panic("sfork: sys_exofork error, %e", child);
+
+	if (child == 0) {
+		thisenv = &envs[ENVX(child)];
+		return 0;
+	}
+
+	//
+	// copy memory space 
+	extern volatile pde_t uvpd[];
+	extern volatile pte_t uvpt[];
+
+	uint8_t *addr = 0;
+#if _DEBUG
+	cprintf("current stack: &addr = %08p\n", &addr);
+#endif
+	// share the memory page below the user stack
+	// as end is determined when link, 
+	// the heap may not be included,
+	// &addr is better
+	for (addr = (uint8_t *)UTEXT; addr < (uint8_t *)ROUNDDOWN(&addr, PGSIZE); addr += PGSIZE) {
+		if ((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P)) {
+			pte_t pte = uvpt[PGNUM(addr)];
+			int perm = PTE_U | PTE_P;  // copy the permission
+			if (pte & PTE_W) perm |= PTE_W;
+			if ((r = sys_page_map(0, addr, child, addr, perm)) < 0)
+				panic("sfork: %e", r);
+
+#if _DEBUG
+			if (pte & PTE_W)
+			cprintf("[%04x] map %08p to child env %04x with permissson PTE_U | PTE_W\n", sys_getenvid(), addr, child);
+			else 
+			cprintf("[%04x] map %08p to child env %04x with permissson PTE_U\n", sys_getenvid(), addr, child);
+#endif
+		}
+	}
+	// mark user stack COW for both
+	for (addr = (uint8_t *)ROUNDDOWN(&addr, PGSIZE);
+			 addr < (uint8_t *)USTACKTOP; addr += PGSIZE){
+		if ((r = sys_page_map(0, addr, child, addr, PTE_U | PTE_COW)) < 0)
+			panic("sfork: sys_page_map %08p to child error, %e", addr, r);
+		if ((r = sys_page_map(0, addr, 0, addr, PTE_U | PTE_COW)) < 0)
+			panic("sysfork: sys_page_map %08p to myself error, %e", addr, r);
+
+#if _DEBUG
+		cprintf("[%04x] map %08p for env %04x as PTE_COW | PTE_U\n", sys_getenvid(), addr, child);
+#endif
+	}
+	// allocate user exception stack for child env
+	if ((r = sys_page_alloc(child, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W)) < 0)
+		panic("sfork: sys_page_alloc user exception stack for child env error, %e", r);
+
+#if _DEBUG
+	cprintf("create user exception stack page for child done\n");
+#endif
+
+	//
+	// set page fault handler for child
+	extern void _pgfault_upcall(void);
+
+	if ((r = sys_env_set_pgfault_upcall(child, _pgfault_upcall)) < 0)
+		panic("sfork: %e", r);
+
+	// mark child as runnable
+	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
+		panic("sfork: %e", r);
+
+	return child;
 }

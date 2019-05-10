@@ -23,9 +23,13 @@ int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
-	// FIXME: pg is null ?
 	if (!pg) pg = (void *) UTOP;
+	// cprintf("[0x%04x] thisenv: %04x\n", sys_getenvid(), thisenv->env_id);
 	int r = sys_ipc_recv(pg);
+	// cprintf("[0x%04x] thisenv: %04x\n", sys_getenvid(), thisenv->env_id);
+
+	thisenv = &envs[ENVX(sys_getenvid())];
+	
 	if (r < 0) {
 		if (from_env_store)
 			*from_env_store = 0;

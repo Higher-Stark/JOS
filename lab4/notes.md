@@ -91,6 +91,10 @@ The registers are saved in environment's trap frame.
 `sys_exofork()` fork an environment according to parent environment, but doesn't copy any memory mapping. As parent environment's status is saved in trap frame, I just make an copy of parent environment's trap frame for new environment. 
 But `sys_exofork` returns different values to parent environment and child environment, child environment's id for the former and 0 for the latter. As child environment get the result from `$eax` but parent get it by return statement, just change child environment's trap frame's `reg_eax` to 0.
 
+*One thing is not mentioned in both doc and comment, **env's break** should be copied.* 
+*Creation of an env includes loading the instruction code and set the break pointer.*
+*But `sys_exofork()` just call `env_alloc()` without the need to load instruction code. So copy the parent break pointer to child env.*
+
 `sys_env_set_status()` sets target environment's status to `status`. Setting the third parameter to 1 to ensure current environment has the permission to manipulate the target environment.
 
 `sys_page_alloc()` allocate a page at virtual address `va` in target environment's virtual memory space. Like `sys_env_set_status()`, current environment must have the permission to manipulate the target environment. 
@@ -167,6 +171,15 @@ If the page is read-only, we just mapped it read-only in child env's.
 
 `pgfault` first checks and panics if it is not triggered by writing to a copy-on-write page. We just duplicate the page and replace the old mapping. Then the program resumes.
 
+### Challenge - sfork
+
+`fork()` create a child env which is not allowed to modify parent env's memory space. `sfork()` create a shared one. This is some what useful when two envs communicates frequently.
+
+The implementation of `sfork()` is quite similiar to `fork()`. The difference is that pages below user stack is shared between parent and child and child has the same permission as parent has. But user stack and user exception stack is not shared.
+
+**Notice**
+`thisenv` is defined in user level memory, as a global variable. To achieve proper functionality, we need to set `thisenv` to the real 'thisenv' `thisenv = &envs[ENVX(sys_getenvid())]`.
+
 ## Part C: Preemptive Multitasking and Inter-Process communication
 
 So far the JOS can't gains the control of the CPU only when the program gives up voluntarily. 
@@ -186,9 +199,7 @@ When we run `spin`, the program will trap with `trapno = 32 // Hardware clock`.
 
 Once we trapped with a hardware clock interrupt, we call `sched_yield()` and gives up the control on CPU. Preemptive multitasking is roughly achieved.
 
-One point is that acknowledge the interrupt before call `sched_yield()`.
-
-**TODO: why?**
+One point is that acknowledge the interrupt before call `sched_yield()` by calling `lapic_eoi()`. As `sched_yield()` is a non-return function, we must clear the clock interrupt to let other env run.
 
 ### Exercise 15
 
