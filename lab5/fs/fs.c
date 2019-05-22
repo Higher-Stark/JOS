@@ -62,8 +62,30 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
-	return -E_NO_DISK;
+	uint32_t blockno = 0;
+	for (; blockno < super->s_nblocks; ) {
+		uint32_t bits = bitmap[blockno / 32];
+		if (bits == 0) {
+			blockno += 32;
+			continue;
+		}
+
+		int i = 0;
+		for (; i != 32; i++) 
+			if (bits & (1 << i))
+				break;
+
+		blockno += i;
+		break;
+	}
+	if (blockno >= super->s_nblocks)
+		return -E_NO_DISK;
+	
+	bitmap[blockno / 32] &= ~(1 << (blockno % 32));
+	flush_block(&bitmap[blockno / 32]);
+
+	cprintf("alloc block : %3u\n", blockno);
+	return blockno;
 }
 
 // Validate the file system bitmap.
@@ -134,8 +156,30 @@ fs_init(void)
 static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
-       // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+	// LAB 5: Your code here.
+
+	if (filebno >= NDIRECT + NINDIRECT)
+		return -E_INVAL;
+
+	if (filebno < NDIRECT) 
+		*ppdiskbno = &(f->f_direct[filebno]);
+	
+	else {
+		if (!f->f_indirect && !alloc)
+			return -E_NOT_FOUND;
+		if (!f->f_indirect && alloc) {
+			int r = alloc_block();
+			if (r < 0) return r;
+			// clear the block
+			memset(diskaddr(r), 0, BLKSIZE);
+			f->f_indirect = r;
+			flush_block(diskaddr(r));
+		}
+
+		uint32_t *blk = diskaddr(f->f_indirect);
+		*ppdiskbno = &(blk[filebno - NDIRECT]);
+	}
+	return 0;
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -149,8 +193,22 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
-       // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+	// LAB 5: Your code here.
+	uint32_t *slot = 0;
+	int r;
+	if ((r = file_block_walk(f, filebno, &slot, true)) < 0)
+		return r;
+
+	if (*slot == 0) {
+		if ((r = alloc_block()) < 0)
+			return r;
+		*slot = r;
+		*blk = diskaddr(r);
+	}
+	else
+		*blk = diskaddr(*slot);
+
+	return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
