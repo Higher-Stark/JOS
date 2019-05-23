@@ -302,6 +302,33 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	extern volatile pde_t uvpd[];
+	extern volatile pte_t uvpt[];
+
+	const unsigned int uxpn = PGNUM(UXSTACKTOP - PGSIZE);
+
+	for (int i = PDX(UTEXT); i <= PDX(USTACKTOP); ++i) {
+
+		if (uvpd[i] & PTE_P) {
+
+			for (int j = 0; j != NPTENTRIES; ++j) {
+
+				unsigned int pgnum = PGNUM(PGADDR(i, j, 0));
+				if (pgnum == uxpn) continue;
+				uint8_t *addr = (uint8_t *)(pgnum * PGSIZE);
+				const int perm = PTE_U | PTE_P;
+				int r = 0;
+
+				if ((uvpt[pgnum] & perm) == perm) {
+					if ((uvpt[pgnum] & PTE_SYSCALL) & PTE_SHARE) {
+						if ((r = sys_page_map(0, addr, child, addr, uvpt[pgnum] & PTE_SYSCALL)) < 0)
+							return r;
+					}
+				}
+
+			}
+		}
+	}
 	return 0;
 }
 

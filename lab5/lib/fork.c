@@ -83,7 +83,11 @@ duppage(envid_t envid, unsigned pn)
 
 	const int perm = PTE_U | PTE_P;
 
-	if (uvpt[pn] & (PTE_W | PTE_COW)) {
+	if ((uvpt[pn] & PTE_SYSCALL) & PTE_SHARE) {
+		if ((r = sys_page_map(0, addr, envid, addr, uvpt[pn] & PTE_SYSCALL)) < 0)
+			return r;
+	}
+	else if (uvpt[pn] & (PTE_W | PTE_COW)) {
 		r = sys_page_map(0, addr, envid, addr, PTE_COW | perm);
 		if (r < 0) return r;
 		r = sys_page_map(0, addr, 0, addr, PTE_COW | perm);

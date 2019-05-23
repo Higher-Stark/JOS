@@ -67,3 +67,29 @@ Then we read request bytes from the file at the offset (the offset lies in file 
 Writing a file in `serve_write()`, the routine is quite similiar to `serve_read()`.
 
 For `devfile_write()`, constructing IPC arguments is similiar to `devfile_read()`. The most significant point is that `fsipcbuf.write.req_buf` is an array of char, we should copy requested bytes from `buf` to `req_buf`.
+
+### Spawning Process
+`spawn()` function reads the target file from the disk and parse the file.
+The file is expected to be an ELF file. 
+Then parent environment calls fork and creates initial stack and trap frame. 
+Each segment of ELF file is loaded into memory. 
+Next the shared pages will be copied into child's memory space.
+Trap frame and env's status is set later.
+
+### Exercise 7
+Setting envid's trap frame to `tf`, we should check the trap frame's permission, which is writable by kernel.
+Then we set the CPL to 3, enable interrupt and set IOPL to 0.
+
+### Sharing library state across fork and spawn
+In JOS, one page area is preserved for file descriptor table started at `FDTABLE`. One env can open up to `MAXFD` file descriptors.
+
+In xv6 design, file descriptors are shared between parent env and child env. But currently `fork()` will mark the file descriptor table as copy-on-write. So some more effort need to be done to make child env shares those memory page.
+
+Similiarly, `spawn()` should make some pages shared between parent and child.
+
+To make it work, we define a new flag `PTE_SHARE`, indicating this page is shared with its child.
+
+### Exercise 8
+For `duppage()`, we just check the `PTE_SHARE` bit. If true, we copy it into child's memory space. The permission is almost the same as it in parent, but dirty bit should be cleared. Use `PTE_SYSCALL` is a neat way to mask out relevant bits.
+
+For `copy_shared_pages()`, we just walk through the child's page table. Copy the mapping for those shared pages.
