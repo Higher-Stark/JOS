@@ -54,3 +54,16 @@ The block bitmap records whether a block is used, 0 for used while 1 for free.
 If in indirect list but indirect block is not allocated, allocate a block if in need and set the indirect field in `File`. 
 
 `file_get_block()` get the block number of the n th data block in `File`. If block number is 0, no block is allocated. Allocate a block and put the block number into `File`.
+
+### The File system interface
+In JOS, there is a file system environment in charge of file system as the agent for other environment. 
+Other environment accesses file system by send IPC to that environment.
+
+### Exercise 5
+Reading a file in `serve_read()`, we first look up the open file in current environment. 
+Then we read request bytes from the file at the offset (the offset lies in file descriptor) and put into destination buffer.
+
+### Exercise 6
+Writing a file in `serve_write()`, the routine is quite similiar to `serve_read()`.
+
+For `devfile_write()`, constructing IPC arguments is similiar to `devfile_read()`. The most significant point is that `fsipcbuf.write.req_buf` is an array of char, we should copy requested bytes from `buf` to `req_buf`.
