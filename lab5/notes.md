@@ -93,3 +93,6 @@ To make it work, we define a new flag `PTE_SHARE`, indicating this page is share
 For `duppage()`, we just check the `PTE_SHARE` bit. If true, we copy it into child's memory space. The permission is almost the same as it in parent, but dirty bit should be cleared. Use `PTE_SYSCALL` is a neat way to mask out relevant bits.
 
 For `copy_shared_pages()`, we just walk through the child's page table. Copy the mapping for those shared pages.
+
+### Exercise 9
+As this lab is going to run a shell in console, we need to handle keyboard interrupt for user environment. We need to dispatch keyboard IRQ to `kbd_intr()` to accept keyboard input. And dispatch serial IRQ to handle to serial port event.
