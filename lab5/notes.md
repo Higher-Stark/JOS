@@ -96,3 +96,37 @@ For `copy_shared_pages()`, we just walk through the child's page table. Copy the
 
 ### Exercise 9
 As this lab is going to run a shell in console, we need to handle keyboard interrupt for user environment. We need to dispatch keyboard IRQ to `kbd_intr()` to accept keyboard input. And dispatch serial IRQ to handle to serial port event.
+
+## Challenge
+### Block cache Eviction
+The current design has a big issue: our system doesn't support keeping many files open at the same time. As we only have 256MB memory but disk is allowed to be 3GB large, at some point, our memory will run out because of too many files open in block cache.
+
+Thus we need an eviction policy. 
+When we received a `-E_NO_MEM` executed `sys_page_alloc()` in `bg_pgfault()`, it is clear that our system's block cache is full. We can scan every disk block, if it is mapped, we can evict the corresponding page and reuse the physical page.
+
+```C
+	if (r < 0) {
+		if (r == -E_NO_MEM) {
+			uint32_t bno = 2;
+			for (; bno < super->s_nblocks; bno++) 
+				if (va_is_mapped(diskaddr(bno)))
+					break;
+			
+			if (bno >= super->s_nblocks)
+				panic("bg_pgfault: %e", -E_NO_MEM);
+
+			if ((uvpt[PGNUM(diskaddr(bno))] & PTE_A) && va_is_dirty(diskaddr(bno)))
+				flush_block(diskaddr(bno));
+
+			if ((r = sys_page_unmap(0, diskaddr(bno))) < 0)
+				panic("bg_pgfault: sys_page_unmap error, %e", r);
+			
+			if ((r = sys_page_alloc(0, addr, PTE_U | PTE_W)) < 0)
+				panic("bg_pgfault: %e", r);
+		}
+		else
+		panic("bc_pgfault: sys_page_alloc error, %e", r);
+	}
+```
+
+The eviction policy can be improved with more complex design. The design above somehow helps to solve memory exhaustion caused by too many open file.

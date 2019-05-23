@@ -50,8 +50,28 @@ bc_pgfault(struct UTrapframe *utf)
 	// LAB 5: you code here:
 	addr = ROUNDDOWN(addr, BLKSIZE);
 	r = sys_page_alloc(0, addr, PTE_U | PTE_P | PTE_W);
-	if (r < 0)
+	if (r < 0) {
+		if (r == -E_NO_MEM) {
+			uint32_t bno = 2;
+			for (; bno < super->s_nblocks; bno++) 
+				if (va_is_mapped(diskaddr(bno)))
+					break;
+			
+			if (bno >= super->s_nblocks)
+				panic("bg_pgfault: %e", -E_NO_MEM);
+
+			if ((uvpt[PGNUM(diskaddr(bno))] & PTE_A) && va_is_dirty(diskaddr(bno)))
+				flush_block(diskaddr(bno));
+
+			if ((r = sys_page_unmap(0, diskaddr(bno))) < 0)
+				panic("bg_pgfault: sys_page_unmap error, %e", r);
+			
+			if ((r = sys_page_alloc(0, addr, PTE_U | PTE_W)) < 0)
+				panic("bg_pgfault: %e", r);
+		}
+		else
 		panic("bc_pgfault: sys_page_alloc error, %e", r);
+	}
 	r = ide_read(blockno * BLKSECTS, addr, BLKSECTS);
 
 	// Clear the dirty bit for the disk block page since we just read the
