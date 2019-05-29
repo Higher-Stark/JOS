@@ -97,6 +97,12 @@ For `copy_shared_pages()`, we just walk through the child's page table. Copy the
 ### Exercise 9
 As this lab is going to run a shell in console, we need to handle keyboard interrupt for user environment. We need to dispatch keyboard IRQ to `kbd_intr()` to accept keyboard input. And dispatch serial IRQ to handle to serial port event.
 
+### Exercise 10
+To support I/O support, we need to open the file and make stdin point to the file. 
+Open the file as read-only, and get a file descriptor larger than 2.
+Then duplicate the fd to stdin. _JOS only has `dup()`, whose function is same as `dup2()` in UNIX._
+Last we close the fd. The file content is redirect to stdin.
+
 ## Challenge
 ### Block cache Eviction
 The current design has a big issue: our system doesn't support keeping many files open at the same time. As we only have 256MB memory but disk is allowed to be 3GB large, at some point, our memory will run out because of too many files open in block cache.
