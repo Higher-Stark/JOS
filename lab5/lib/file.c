@@ -151,7 +151,6 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	assert(r <= n);
 	assert(r <= PGSIZE);
 	return r;
-	// panic("devfile_write not implemented");
 }
 
 static int

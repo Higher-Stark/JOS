@@ -38,6 +38,8 @@ pgfault(struct UTrapframe *utf)
 	// page to the old page's address.
 	// Hint:
 	//   You should make three system calls.
+
+	// LAB 4: Your code here.
 	r = sys_page_alloc(0, PFTEMP, PTE_U | PTE_W);
 	if (r < 0) 
 	panic("pgfault: sys_page_alloc error, %e", r);
@@ -53,10 +55,6 @@ pgfault(struct UTrapframe *utf)
 	r = sys_page_unmap(0, PFTEMP);
 	if (r < 0) 
 	panic("pgfault: sys_page_unmap PFTEMP error, %e", r);
-
-	// LAB 4: Your code here.
-
-	// panic("pgfault not implemented");
 }
 
 //
@@ -79,7 +77,6 @@ duppage(envid_t envid, unsigned pn)
 	extern volatile pte_t uvpt[];
 	uint8_t *addr;
 	addr = (uint8_t *)(pn * PGSIZE);
-	// cprintf("duppage begin: %08x\n", (uintptr_t)addr);
 
 	const int perm = PTE_U | PTE_P;
 
@@ -97,8 +94,6 @@ duppage(envid_t envid, unsigned pn)
 		r = sys_page_map(0, addr, envid, addr, perm);
 		if (r < 0) return r;
 	}
-	// panic("duppage not implemented");
-	// cprintf("duppage end\n");
 	return 0;
 }
 
@@ -175,8 +170,6 @@ fork(void)
 		panic("sys_env_set_status: %e", r);
 
 	return childid;
-
-	// panic("fork not implemented");
 }
 
 // Challenge!
