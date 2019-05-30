@@ -136,3 +136,55 @@ When we received a `-E_NO_MEM` executed `sys_page_alloc()` in `bg_pgfault()`, it
 ```
 
 The eviction policy can be improved with more complex design. The design above somehow helps to solve memory exhaustion caused by too many open file.
+
+### Unix like exec
+> The  exec() family of functions replaces the current process image with a new process image. 
+
+To implement exec, we need some extra help from kernel. We need new memory to place the new executable file. 
+Two ways are possible.
+
+1. Implement a new syscall which allocate a new page for the env but not mapped in the page directory and page table. Then this page servers as the new page directory and we need some other syscall, allocate and free pages based on a given page dimmed as page directory. Thus our exec can load the program into memory in user level leveraging syscalls.
+2. Exec in user level loads the executable file into memory and passes it to syscall `sys_exec()`, which handles the rest. That is, most work is done by kernel.
+
+With a little more thinking, the first idea is dangerous. If we allow env to ask for memory page but not record the page in page table, malicious program can call for memory until memory run out.
+
+So the second way is more safe. 
+
+It seems like that create a new page directory for new mapping and free the old page directory is the best way, nothing left for the old image. But we have to deal with shared pages, kernel space mapping, etc. So I just free some old mappings, like `.text`, `.data`, heap and stack. 
+In user level, I load file content to `0xE0000000`, and pass it to kernel. Kernel parses the program and loads each segment into corresponding virtual address. 
+Also, kernel needs to initialize the stack with the given arguments. Before return, kenel must set the `$esp`, `$eip`, so when we return from kernel space to user space we start at the entry of the new image.
+
+The test is in `/user/hello.c`,
+
+```C
+	cprintf("hello, world\n");
+	cprintf("i am environment %08x\n", thisenv->env_id);
+
+	// Test exec
+	char ss[2][30] = {
+		"/echo",
+		"I am environment -_-"
+	};
+
+	char *vs[3] = {ss[0], ss[1], 0};
+	int r = exec("/echo", (const char **)vs);
+	cprintf("Not expected #_# here [%4d] !\n", r);
+```
+
+And here is the output,
+
+```shell
+$ hello
+hello, world
+i am environment 00003004
+I am environment -_-
+$
+```
+
+Obviously, the exec works. 
+
+A reminder, `make run-hello-nox` will not work, as `hello.c` doesn't initialize 0, 1, 2 file desriptors. `echo()` uses `write(1, ...)` to print. 
+In the shell, the 0, 1, 2 three file descriptors are initialized, run `hello` and you can get the output above.
+
+**Reference**
+https://github.com/LancelotGT/JOS/blob/master/kern/syscall.c
