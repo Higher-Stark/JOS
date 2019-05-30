@@ -216,6 +216,14 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	return 0;
 }
 
+static int
+sys_exec(void *binary, char **argv)
+{
+	// TODO: syscall exec
+
+	return env_exec(binary, argv);
+}
+
 // Map the page of memory at 'srcva' in srcenvid's address space
 // at 'dstva' in dstenvid's address space with permission 'perm'.
 // Perm has the same restrictions as in sys_page_alloc, except
@@ -482,6 +490,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_ipc_recv((void *)a1);
 	case SYS_env_set_trapframe:
 		return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+	case SYS_exec: 
+		return sys_exec((void *)a1, (char **)a2);
 	case NSYSCALLS:
 	default:
 		return -E_INVAL;

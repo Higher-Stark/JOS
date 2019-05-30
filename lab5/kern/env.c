@@ -570,3 +570,106 @@ env_run(struct Env *e)
 	env_pop_tf(&curenv->env_tf);
 }
 
+//
+// Execute binary file in current env with arguments of argv
+// 
+// Free .text, .data, heap, stack mapping of old env's.
+// Load binary file's segments into memory.
+// Init the stack and put arguments onto stack
+// Setup trap frame, 
+//       eip -> binary's entry
+//       esp -> below argv and argc
+//
+int env_exec(void *binary, char **argv)
+{
+	struct Elf *elf = (struct Elf *)binary;
+	struct Proghdr *ph, *eph;
+
+	assert(elf->e_magic == ELF_MAGIC);
+
+	ph = (struct Proghdr *)(binary + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+
+	// --- Init stack ----
+	// calculate the total size of strings
+	// put the arguments onto stack
+	// push the number of arguments onto stack
+	size_t string_size;
+	int argc, i, r;
+	char *string_store;
+	uintptr_t *argv_store;
+
+	string_size = 0;
+	for (argc = 0; argv[argc] != 0; argc++) 
+	string_size += strlen(argv[argc]) + 1;
+
+	string_store = (char *)UTEMP + PGSIZE - string_size;
+	argv_store = (uintptr_t *)(ROUNDDOWN(string_store, 4) - 4 * (argc + 1));
+
+	if ((void *)(argv_store - 2) < (void *)UTEMP)
+		return -E_NO_MEM;
+
+	struct PageInfo *nstack;
+	if ((nstack = page_alloc(ALLOC_ZERO)) == NULL)
+		return -E_NO_MEM;
+	if ((r = page_insert(curenv->env_pgdir, nstack,
+											 (void *)UTEMP, PTE_P | PTE_U | PTE_W)) < 0)
+		return r;
+
+	for (i = 0; i < argc; ++i) {
+		argv_store[i] = (void *)string_store + (USTACKTOP - PGSIZE) - UTEMP;
+		strcpy(string_store, argv[i]);
+		string_store += strlen(argv[i]) + 1;
+	}
+	argv_store[argc] = 0;
+	assert(string_store == (char *)UTEMP + PGSIZE);
+
+	argv_store[-1] = (void *)argv_store + (USTACKTOP - PGSIZE) - UTEMP;
+	argv_store[-2] = argc;
+
+	curenv->env_tf.tf_esp = (void *)(&argv_store[-2]) + (USTACKTOP - PGSIZE) - UTEMP;
+
+	// remap to user stack
+	if ((r = page_insert(curenv->env_pgdir, nstack,
+											 (void *)USTACKTOP - PGSIZE, PTE_U | PTE_W)) < 0)
+		goto error;
+	page_remove(curenv->env_pgdir, UTEMP);
+
+	// free pages loaded with .text, .data and heap
+	for (uintptr_t va = UTEXT; va < curenv->brk; va += PGSIZE) 
+		page_remove(curenv->env_pgdir, (void *)va);
+
+	// load each segments of binary file into memory
+	// recalculate the heap break
+	uintptr_t btm = 0;
+	for (; ph != eph; ph++) {
+		if (ph->p_type != ELF_PROG_LOAD) continue;
+
+		region_alloc(curenv, (void *)ph->p_va, ph->p_memsz);
+		memset((void *)ph->p_va, 0, ph->p_memsz);
+		memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+
+		uintptr_t top = ph->p_va + ph->p_memsz;
+		if (top > btm)
+			btm = top;
+	}
+	curenv->brk = btm;
+	curenv->env_tf.tf_eip = elf->e_entry;
+
+	// Free binary file space and old stack.
+	// DO NOT Free page start at USTACKTOP - PGSIZE,
+	// arguments is stored here.
+	for (uintptr_t va = (uintptr_t)binary; va < USTACKTOP - PGSIZE; va += PGSIZE) {
+		page_remove(curenv->env_pgdir, (void *)va);
+	}
+
+	curenv->env_pgfault_upcall = 0;
+	curenv->env_ipc_recving = 0;
+
+	return 0;
+
+	error:
+	page_remove(curenv->env_pgdir, UTEMP);
+	cprintf("[KERNEL] Exit env_exec with error\n");      // --------- DEBUG
+	return r;
+}

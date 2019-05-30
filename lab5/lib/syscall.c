@@ -169,3 +169,8 @@ sys_sbrk(uint32_t inc)
 {
 	return syscall(SYS_sbrk, 0, (uint32_t)inc, (uint32_t)0, 0, 0, 0);
 }
+
+int sys_exec(void *binary, const char **argv)
+{
+	return syscall(SYS_exec, 0, (uint32_t)binary, (uint32_t)argv, 0, 0, 0);
+}
