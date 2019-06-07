@@ -464,7 +464,14 @@ sys_net_send(const void *buf, uint32_t len)
 	// Check the user permission to [buf, buf + len]
 	// Call e1000_tx to send the packet
 	// Hint: e1000_tx only accept kernel virtual address
-	return -1;
+	int r= user_mem_check(curenv, buf, len, PTE_U | PTE_P);
+	if (r < 0) return r;
+
+	// cprintf("\033[32m[INFO]\033[0m sys_net_send(buf = %08p, len = %u)\n", buf, len);
+
+	r = e1000_tx(buf, len);
+
+	return r;
 }
 
 int
@@ -474,7 +481,12 @@ sys_net_recv(void *buf, uint32_t len)
 	// Check the user permission to [buf, buf + len]
 	// Call e1000_rx to fill the buffer
 	// Hint: e1000_rx only accept kernel virtual address
-	return -1;
+	int r = 0;
+	// cprintf("\033[34m[INFO]\033[0m sys_net_recv(buf = %08p, len = %u)\n", buf, len);
+	if ((r = user_mem_check(curenv, buf, len, PTE_U | PTE_P | PTE_W)) < 0) return r;
+	r = e1000_rx(buf, len);
+	
+	return r;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -524,6 +536,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_exec((void *)a1, (char **)a2);
 	case SYS_time_msec:
 		return sys_time_msec();
+	case SYS_net_send:
+		return sys_net_send((const void *)a1, (uint32_t)(a2));
+	case SYS_net_recv:
+		return sys_net_recv((void *)a1, (uint32_t)a2);
 	case NSYSCALLS:
 	default:
 		return -E_INVAL;

@@ -49,7 +49,7 @@ struct E1000 {
 #define E1000_RCTL_EN                (2U)
 #define E1000_RCTL_BSIZE_2048        (0U << 16)
 #define E1000_RCTL_SECRC             (1U << 26)
-
+#define E1000_RAH_AV								 (1U << 31)
 #define QEMU_MAC_LOW 0x12005452
 #define QEMU_MAC_HIGH 0x5634
 
@@ -64,7 +64,7 @@ struct tx_desc {
 };
 
 #define E1000_TX_CMD_EOP (1U)
-#define E1000_TX_CMD_RS (4U)
+#define E1000_TX_CMD_RS (8U)
 #define E1000_TX_STATUS_DD (1U)
 
 struct rx_desc {
