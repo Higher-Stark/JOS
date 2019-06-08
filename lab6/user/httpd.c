@@ -77,7 +77,25 @@ static int
 send_data(struct http_request *req, int fd)
 {
 	// LAB 6: Your code here.
-	panic("send_data not implemented");
+	char file_buf[BUFFSIZE];
+	memset(file_buf, 0, sizeof(file_buf));
+
+	int r;
+	while (true) {
+		r = read(fd, file_buf, BUFFSIZE);
+		if (r < 0) {
+			cprintf("send_data [ERROR] read: %e\n", r);
+			return r;
+		}
+		int len = r;
+		if ((r = write(req->sock, file_buf, len)) != len) {
+			cprintf("Failed to send \033[32m%d\033[0m bytes to client, "
+							"\033[33m%d\033[0m sent.\n",
+							len, r);
+		}
+		if (len < BUFFSIZE) break;
+	}
+	return 0;
 }
 
 static int
@@ -223,7 +241,23 @@ send_file(struct http_request *req)
 	// set file_size to the size of the file
 
 	// LAB 6: Your code here.
-	panic("send_file not implemented");
+	if ((fd = open(req->url, O_RDONLY)) < 0) {
+		cprintf("\033[34m[INFO]\033[0m file %s not found\n", req->url);
+		send_error(req, 404);
+		return 0;
+	}
+	struct Stat stat;
+	if ((r = fstat(fd, &stat)) < 0) {
+		cprintf("send_file [ERROR] fstat error, %e", r);
+		goto end;
+	}
+	if (stat.st_isdir) {
+		cprintf("\033[34m[INFO]\033[0m %s is a directory\n", req->url);
+		send_error(req, 404);
+		return 0;
+	}
+
+	file_size = stat.st_size;
 
 	if ((r = send_header(req, 200)) < 0)
 		goto end;

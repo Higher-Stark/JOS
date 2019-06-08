@@ -39,3 +39,26 @@ __This is quite important not to handle `E_AGAIN` in kernel. In JOS only one env
 
 In `input()`, we keep retrying until we get a packet. Before receiption, we should allocate a page for `struct Nsipc nsipcbuf`. Once we get the packet, send it out through IPC. 
 For netserver to have time to copy the packet, we call `yield()` for a couple of times after IPC.
+
+### Question 3
+
+The web page says "cheesy web page" and shows that `index.html` comes from JOS.
+
+### Question 4
+I spent 5 days on this lab and chanllenge is not accounted.
+
+```git
+* commit 7e3a94c
+| Author: Higher Stark <higherwashington@gmail.com>
+| Date:   Sat Jun 8 11:19:09 2019 +0800
+| 
+|     Finish all exercises
+|    
+*   commit 9a3b4f1
+|\  Merge: d31e6fa 0968e17
+| | Author: Higher Stark <higherwashington@gmail.com>
+| | Date:   Mon Jun 3 16:52:46 2019 +0800
+| | 
+| |     Merge lab5, Lab 6 Start
+| |   
+```

@@ -119,7 +119,7 @@ e1000_tx(const void *buf, uint32_t len)
 
 	if (len > 1518) return -E_INVAL;
 	// The TX descriptor queue is full
-	cprintf("e1000_tx: \033[33m[INFO]\033[0msend packet, len: %u\n", len);
+	// cprintf("e1000_tx: \033[33m[INFO]\033[0msend packet, len: %u\n", len);
 
 	uint32_t tdt = base->TDT;
 	uint32_t tdh = base->TDH;
